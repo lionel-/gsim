@@ -16,6 +16,7 @@
 #' @export
 gsim <- function(data, mclist, groups = NULL) {
   env <- new.env(parent = asNamespace("gsim"))
+  Map(function(fun, name) assign(name, fun, envir = env), utils, names(utils))
 
   env$sim <- gsim_process(data, mclist, groups) %>%
     flatten
@@ -39,29 +40,53 @@ gsim <- function(data, mclist, groups = NULL) {
     ## objects identically named in the global env and env$sim. We
     ## want to operate only on the object located in env$sim.
 
-    x <- substitute(x)
-    is_defined <- exists(deparse(x))
+    ## todo, try what happens when same object exists in globenv
 
-    if (is_defined && (class(eval(x)) == "{" || is.language(eval(x)))) {
+    eval_curly <- function(x) {
+      x <- x[seq(2, length(x))]
+      res <- lapply(x, function(x) eval(x, env$sim, env))
+      res[[length(x) - 1]]
+    }
+
+
+    x <- substitute(x)
+
+    ## If user passes a quoted "{", evaluate the quote to get the "{" object
+    if (try(class(eval(x)), silent = TRUE) == "{")
       x <- eval(x)
 
-      if (class(x) == "{") {
 
-        ## When user passes a quoted list as argument, evaluate them
-        ## sequentially and return last result
-        x <- x[seq(2, length(x))]
-        res <- lapply(x, function(x) eval(x, env$sim, env))
-        res <- res[length(res)]
+    ## When user passes a list of names, make sure the name represent
+    ## quoted "{" objects evaluate them sequentially, and return last
+    ## result
+    if (class(x) == "call" && x[[1]] == "list") {
+      args <- as.list(x[-1])
+      all_curly <- vapply(args, function(arg) class(arg %>% as.character %>% get) == "{",
+                         logical(1)) %>% all
+      stopifnot(all_curly)
 
-      } else if (is.language(x)) {
-        res <- eval(x, env$sim, env)
+      res <- lapply(args, function(arg) {
+        curly <- get(as.character(arg))
+        eval_curly(curly)
+      })
+      res <- res[[length(res)]]
 
-      } else stop("uh oh")
+    ## When user passes a "{" list as argument, evaluate the
+    ## components sequentially and return last result
+    } else if (class(x) == "{") {
+       res <- eval_curly(x)
 
-    ## If x yielded an error, evaluate it inside env$sim
-    } else {
-      res <- eval(substitute(x), env$sim, env)
-    }
+    ## Could be a name or a function (such as assignment)
+    } else if (is.language(x)) {
+      res <- eval(x, env$sim, env)
+
+    } else stop("uh oh")
+
+
+    if (!inherits(res, "AsIs"))
+      res <- as.data.frame(res)
+    else
+      class(res) <- setdiff(class(res), "AsIs")
 
     invisible(res)
   }

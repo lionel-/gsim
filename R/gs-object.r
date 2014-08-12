@@ -67,16 +67,32 @@ set_gs_class <- function(gs, class, grouped = NULL) {
     class(gs) <- c(class(gs), "grouped_gs")
   }
   if (is.list(gs)) {
-    class(gs) <- c(class(gs), "gsvec")
+    class(gs) <- c(class(gs), "vec_gs")
   }
   gs
 }
 
 
-gsim_group <- function(gs) attr(gs, "group")
+group <- function(gs) attr(gs, "group")
 
 set_group <- function(gs, group) {
+  ## todo: make sure index is always from 1 to # levels
+  ## as.factor is kind of a quick hack?
+  group_var <- get(group, envir = parent.frame())
+  index <- as.factor(group_var) %>% as.numeric
+  index_seq <- seq_len(get_n(1))
+
+  indices <- lapply(unique(index), function(group) {
+    index_seq[index == group]
+  })
+  attr(gs, "indices") <- indices
+
   attr(gs, "group") <- group
+  gs <- set_gs_class(gs, gsim_class(gs), grouped = TRUE)
+
+  ## Also a hack
+  attr(gs, "labels") <- unique(group_var)
+
   gs
 }
 
@@ -96,12 +112,3 @@ get_gs_group <- function(data, groups, type) {
   lapply(names(data), get_group)
 }
 
-
-#' @export
-`[.gsvec` <- function(x, ...) {
-  class <- class(x)
-  class(x) <- "list"
-  x <- x[...]
-  class(x) <- class
-  x
-}

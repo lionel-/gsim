@@ -23,8 +23,8 @@ operator <- function(fun) {
     is_a_grouped <- inherits(a, "grouped_gs")
     is_b_grouped <- inherits(b, "grouped_gs")
 
-    a_group <- gsim_group(a)
-    b_group <- gsim_group(b)
+    a_group <- group(a)
+    b_group <- group(b)
 
     if (length(a_group) > 1 || length(b_group) > 1) {
       stop("Todo: One of the objects belongs to more than one group")
@@ -134,11 +134,11 @@ operate_on_gs <- function(a, b, fun) {
 }
 
 expand_grouped_gs <- function(gs) {
-  assert_that(!is.null(gsim_group(gs)))
+  assert_that(!is.null(group(gs)))
   if (is.gsvar(gs)) {
-    gs <- gs[get(gsim_group(gs))]
+    gs <- gs[get(group(gs))]
   } else {
-    gs <- gs[get(gsim_group(gs)), ]
+    gs <- gs[get(group(gs)), ]
   }
 
   gs
@@ -165,7 +165,7 @@ operate_on_identically_grouped <- function(a, b, fun) {
   class <- gsim_class(a)
   result <- fun(a, b)
 
-  gs(result, class, group = gsim_group(a))
+  gs(result, class, group = group(a))
 }
 
 operate_on_grouped_param <- function(a, b, fun) {
@@ -215,12 +215,12 @@ operate_on_grouped_param <- function(a, b, fun) {
     result <- fun(a, b)
   }
 
-  gs(result, "gsresult", group = gsim_group(a))
+  gs(result, "gsresult", group = group(a))
 }
 
 operate_on_grouped_var_result <- function(a, b, fun) {
   result <- fun(a, b)
-  gs(result, "gsresult", group = gsim_group(a))
+  gs(result, "gsresult", group = group(a))
 }
 
 
@@ -236,8 +236,8 @@ operate_on_grouped_var_result <- function(a, b, fun) {
   nsims <- get_nsims(1)
   res <- array(NA, c(nsims, nobs))
 
-  if (!is.bound_gs(x) && is.gsvec(x)) x <- cvec(x)
-  if (!is.bound_gs(y) && is.gsvec(y)) y <- cvec(y)
+  if (!is.matrix_gs(x) && is.vec_gs(x)) x <- cvec(x)
+  if (!is.matrix_gs(y) && is.vec_gs(y)) y <- cvec(y)
 
   if (is.gsparam(x)) {
     for (i in seq(nsims)) {

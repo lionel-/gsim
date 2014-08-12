@@ -44,17 +44,55 @@ var <- function(x, ...) {
   UseMethod("var")
 }
 
-var.default <- function(...) {
-  stats::var(...)
+var.gsvar <- function(gs, ...) {
+  if (is.grouped_gs(gs)) {
+    res <- lapply(indices(gs), function(ind) {
+      stats::var(gs[ind], ...)
+    })
+    names(res) <- labels(gs)
+    gs(res, "gsvar", group(gs))
+
+  } else {
+    stats::var(gs, ...)
+  }
 }
 
-var.gsresult <- function(gs, by = "sim") {
-  if (by == "sim") i <- 1
-  else i <- 2
-  res <- apply(gs, i, stats::var)
-  gs(res, "gsvar", group = gsim_group(gs))
+var.gsresult <- function(gs, along = "sims", ...) {
+  var_fun <-
+    if (along == "sims") rowVars
+    else colVars
+  ## browser()
+
+    if (is.grouped_gs(gs)) {
+      res <- lapply(indices(gs), function(ind) var_fun(gs[ind, ]))
+      names(res) <- labels(gs)
+    } else {
+      res <- var_fun(gs)
+    }
+
+  class <-
+    if (along == "sims") "gsvar"
+    else "gsparam"
+
+  gs(res, class, group = group(gs))
 }
 
+
+### template for future summarizing functions using apply
+## var.gsresult <- function(gs, by = "sim", ...) {
+##   if (by == "sim") i <- 1
+##   else i <- 2
+
+##   if (is.grouped_gs(gs)) {
+##     res <- lapply(indices(gs), function(ind) {
+##       apply(gs[ind, ], i, stats::var, ...)
+##     })
+##   } else {
+##     res <- apply(gs, i, stats::var, ...)
+##   }
+
+##   gs(res, "gsvar", group = group(gs))
+## }
 
 
 sd <- function(x, ...) {
@@ -68,13 +106,13 @@ sd.default <- function(...) {
 sd.gsresult <- function(gs, along = "sim") {
   if (along == "sim") i <- 1 else i <- 2
   res <- apply(gs, i, sd.default)
-  gs(res, "gsvar", group = gsim_group(gs))
+  gs(res, "gsvar", group = group(gs))
 }
 
 sd.gsparam <- function(gs, along = "sim") {
   if (along == "sim") i <- 1 else i <- 2
   res <- apply(gs, i, sd.default)
-  gs(res, "gsvar", group = gsim_group(gs))
+  gs(res, "gsvar", group = group(gs))
 }
 
 
@@ -85,20 +123,20 @@ rescale <- function(x) {
 
 rescale.gsvar <- function(gs) {
   data <- arm::rescale(gs)
-  gs(data, "gsvar", gsim_group(gs))
+  gs(data, "gsvar", group(gs))
 }
 
 
 
 mean.gsresult <- function(gs) {
   ## if (is.null(dim(gs)) && is.grouped_gs(gs)) {
-  ##   res <- data.frame(gs = gs, group = get(gsim_group(gs))) %>%
+  ##   res <- data.frame(gs = gs, group = get(group(gs))) %>%
   ##     group_by(school) %>%
   ##     summarize(mean = mean) %>%
   ##     select(mean)
   ## } else {
   res <- rowMeans(gs)
-  gs(res, "gsvar", group = gsim_group(gs))
+  gs(res, "gsvar", group = group(gs))
 }
 
 mean.gsvar <- function(gs) {
@@ -113,7 +151,7 @@ mean.gsparam <- function(gs) {
   }
   ## When we aggregate over sims and get an object which does not
   ## embed posterior uncertainty, it becomes a "gsvar"
-  gs(res, "gsvar", group = gsim_group(gs))
+  gs(res, "gsvar", group = group(gs))
 }
 
 
