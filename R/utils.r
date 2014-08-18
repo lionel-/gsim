@@ -17,8 +17,26 @@ nsims <- function(gs) {
 }
 
 
-get_n <- function(n_up = 1) get("..n..", envir = parent.frame(n_up + 1))
-get_nsims <- function(n_up = 1) get("..nsims..", envir = parent.frame(n_up + 1))
+## Look up objects dynamically through the calling stack
+get_metadata <- function(obj) {
+  function() {
+    n <- 1
+    env <- parent.frame(n)
+
+    while(!identical(env, globalenv())) {
+      if (exists(obj, envir = env))
+        return(get(obj, envir = env))
+
+      n <- n + 1
+      env <- parent.frame(n)
+    }
+
+    stop(paste("Cannot find", obj))
+  }
+}
+
+get_n <- get_metadata("..n..")
+get_nsims <- get_metadata("..nsims..")
 
 
 indices <- function(gs) attr(gs, "indices", exact = TRUE)
@@ -46,40 +64,26 @@ rowVars <- function(a) {
 }
 
 
-as.data.frame.gs <- function(gs, ...) {
-  if (is.vec_gs(gs))
-    as.data.frame.vec_gs(gs, ...)
-  else if (is.gsresult(gs))
-    as.data.frame.gsresult(gs, ...)
-}
-
-as.data.frame.gsresult <- function(gs, ...) {
-  nobs <- nrow(gs)
-  nsims <- ncol(gs)
-
-  gs %>%
-    as.data.frame.matrix %>%
-    set_colnames(seq_len(nsims)) %>%
-    cbind(obs = seq_len(nobs)) %>%
-    gather_("sim", name(gs), seq_len(nsims))
-}
-
-
-name <- function(gs) {
+get_name <- function(gs) {
   name <- attr(gs, "name", exact = TRUE)
   if (is.null(name)) "gs"
   else name
 }
+name <- get_name
+
 
 #' @export
+`name<-` <- function(gs, value) {
+  attr(gs, "name") <- value
+  gs
+}
+
 set_name <- function(x, name) {
   UseMethod("set_name")
 }
 
-set_name.gs <- function(gs, name) {
-  attr(gs, "name") <- name
-  gs
-}
+set_name.gs <- `name<-`
+set_name.numeric <- `name<-`
 
 #' @export
 set_name.data.frame <- function(df, name) {
@@ -96,7 +100,56 @@ utils$class <- function(x) cat(class(x), "\n")
 utils$str <- function(x) cat(str(x), "\n")
 
 
+
 make_names_unique <- function(names) {
   # todo: make gs1 = gs2 when there are two gs
   make.unique(names, sep = "")
 }
+
+
+
+group <- function(gs) attr(gs, "group")
+
+set_group <- function(gs, group) {
+  ## browser(expr = getOption("debug_on"))
+  ## todo: make sure index is always from 1 to # levels
+  ## as.factor is kind of a quick hack?
+  group_var <- get(group, envir = parent.frame())
+  index <- as.factor(group_var) %>% as.numeric
+  index_seq <- seq_len(get_n())
+
+  indices <- lapply(unique(index), function(group) {
+    index_seq[index == group]
+  })
+  attr(gs, "indices") <- indices
+
+  attr(gs, "group") <- group
+  gs <- set_gs_class(gs, gsim_class(gs), grouped = TRUE)
+
+  ## todo: next line also a hack
+  attr(gs, "labels") <- unique(group_var)
+
+  gs
+}
+
+get_gs_group <- function(data, groups, type) {
+  names_by_group <- lapply(groups, "[[", type)
+
+  get_group <- function(x) {
+    res <- NULL
+    for (group in names(names_by_group)) {
+      temp <- if (x %in% names_by_group[[group]]) group else NULL
+      res <- c(res, temp)
+    }
+    assert_that(is.null(res) || length(res) == 1)
+    res
+  }
+
+  lapply(names(data), get_group)
+}
+
+
+set_class <- function(x, ...) {
+  `class<-`(x, c(...))
+}
+

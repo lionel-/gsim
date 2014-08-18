@@ -61,7 +61,6 @@ var.gsresult <- function(gs, along = "sims", ...) {
   var_fun <-
     if (along == "sims") rowVars
     else colVars
-  ## browser()
 
     if (is.grouped_gs(gs)) {
       res <- lapply(indices(gs), function(ind) var_fun(gs[ind, ]))
@@ -173,7 +172,7 @@ tail.gsresult <- function(x, n = 6) {
 
 #' @export
 head.gsparam <- function(x, n = 6) {
-  if (inherits(x, "grouped_gs") || inherits(x, "cvec_gs")) {
+  if (inherits(x, "grouped_gs") || inherits(x, "matrix_gs")) {
     x[1:n, 1:5]
   } else {
     x[1:n]

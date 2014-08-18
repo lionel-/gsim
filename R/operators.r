@@ -1,50 +1,63 @@
+# todo: binary op with matrix_gs and gs
 
+## Function factory for binary element-wise operators 
 operator <- function(fun) {
   function(a, b) {
 
-    ## Need to remove gs class to provoke method dispatch later on.
-    ## NextMethod does not work because it evaluates directly with
-    ## fun, whereas we need a functional of fun. We would need S4
-    ## classes to get the name of the next method and feed it to the
-    ## functional.
-    class(a) <- setdiff(class(a), "gs")
-    class(b) <- setdiff(class(b), "gs")
+    ## Handling sequences
+    if (is.seq_gs(a) || is.seq_gs(b))
+      return(seq_operate_binary(a, b, function(a, b) operate(a, b, fun)))
 
-    ## ## Make gsim operations compatible with numeric objects
-    ## ## Maybe not necessary since attributes rework
-    ## if (is.numeric(a)) {
-    ##   a <- gs(a, "gsvar")
-    ## } else if (is.numeric(b)) {
-    ##   b <- gs(b, "gsvar")
-    ## }
+    if (is.list_gs(a) || is.list_gs(b))
+      stop("todo")
 
-    classes  <- c(gsim_class(a), gsim_class(b))
-
-    is_a_grouped <- inherits(a, "grouped_gs")
-    is_b_grouped <- inherits(b, "grouped_gs")
-
-    a_group <- group(a)
-    b_group <- group(b)
-
-    if (length(a_group) > 1 || length(b_group) > 1) {
-      stop("Todo: One of the objects belongs to more than one group")
-    } else if (!any(c(is.null(a_group), is.null(b_group))) &&
-               a_group != b_group) {
-      stop("Objects belong to different groups")
-    }
-
-    if (is_a_grouped != is_b_grouped) {
-      ## Objects loose their grouped character when combined with
-      ## ungrouped objects
-      result <- operate_on_gs(a, b, fun)
-    } else if (is_a_grouped && is_b_grouped) {
-      result <- operate_on_grouped_gs(a, b, fun)
-    } else {
-      result <- operate_on_gs(a, b, fun)
-    }
-
-    result
+    operate(a, b, fun)
   }
+}
+
+operate <- function(a, b, fun) {
+  ## Need to remove gs class to provoke method dispatch later on.
+  ## NextMethod does not work because it evaluates directly with
+  ## fun, whereas we need a functional of fun. We would need S4
+  ## classes to get the name of the next method and feed it to the
+  ## functional.
+  class(a) <- setdiff(class(a), "gs")
+  class(b) <- setdiff(class(b), "gs")
+
+  ## ## Make gsim operations compatible with numeric objects
+  ## ## Maybe not necessary since attributes rework
+  ## if (is.numeric(a)) {
+  ##   a <- gs(a, "gsvar")
+  ## } else if (is.numeric(b)) {
+  ##   b <- gs(b, "gsvar")
+  ## }
+
+  classes  <- c(gsim_class(a), gsim_class(b))
+
+  is_a_grouped <- inherits(a, "grouped_gs")
+  is_b_grouped <- inherits(b, "grouped_gs")
+
+  a_group <- group(a)
+  b_group <- group(b)
+
+  if (length(a_group) > 1 || length(b_group) > 1) {
+    stop("Todo: One of the objects belongs to more than one group")
+  } else if (!any(c(is.null(a_group), is.null(b_group))) &&
+             a_group != b_group) {
+    stop("Objects belong to different groups")
+  }
+
+  if (is_a_grouped != is_b_grouped) {
+    ## Objects loose their grouped character when combined with
+    ## ungrouped objects
+    result <- operate_on_gs(a, b, fun)
+  } else if (is_a_grouped && is_b_grouped) {
+    result <- operate_on_grouped_gs(a, b, fun)
+  } else {
+    result <- operate_on_gs(a, b, fun)
+  }
+
+  result
 }
 
 operate_on_gs <- function(a, b, fun) {
@@ -231,26 +244,51 @@ operate_on_grouped_var_result <- function(a, b, fun) {
 "^.gs" <- operator(`^`)
 
 
-"%*%" <- function(x, y) {
-  nobs <- get_n(1)
-  nsims <- get_nsims(1)
-  res <- array(NA, c(nsims, nobs))
+`%*%` <- function(x, y) {
+  UseMethod("%*%")
+}
 
-  if (!is.matrix_gs(x) && is.vec_gs(x)) x <- cvec(x)
-  if (!is.matrix_gs(y) && is.vec_gs(y)) y <- cvec(y)
+`%*%.numeric` <- function(x, y) {
+  stop()
+}
 
-  if (is.gsparam(x)) {
-    for (i in seq(nsims)) {
-      res[i, ] <- base::`%*%`(x[i, ], y)
+`%*%.gs` <- function(x, y) {
+
+  ## Handling sequences
+  if (is.seq_gs(x) || is.seq_gs(y))
+    return(seq_operate_binary(x, y, `%*%.gs`))
+  
+  
+  ## Transform list of coefficients into proper matrices
+  if (is.list_gs(x)) x <- as.matrix(x)
+  if (is.list_gs(y)) y <- as.matrix(y)
+  
+
+  ## todo: handle all 2^3 combinations
+  if (is.gsparam(x) || is.gsparam(y)) {
+    nobs <- Find(is.gsvar, list(x, y)) %>% nrow
+    nsims <- get_nsims()
+    res <- array(NA, c(nobs, nsims))
+
+    if (is.gsparam(x)) {
+      for (i in seq(nsims)) {
+        res[, i] <- base::`%*%`(x[i, ], y)
+      }
     }
-  } else if (is.gsparam(y)) {
-    for (i in seq(nsims)) {
-      res[i, ] <- base::`%*%`(x, y[i, ])
+    else if (is.gsparam(y)) {
+      for (i in seq(nsims)) {
+        res[, i] <- base::`%*%`(x, y[i, ])
+      }
     }
-  } else {
-    res <- x %*% y
+
+    res <- gs(res, "gsresult")
+
   }
 
-  t(res) %>%
-    gs("gsresult", nobs = nobs, nsims = nsims)
+  else {
+    res <- base::`%*%`(cbind(x), cbind(y)) %>%
+      t %>% gs("gsvar")
+  }
+
+  res
 }

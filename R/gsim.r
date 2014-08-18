@@ -2,34 +2,29 @@
 #'
 #' @name gsim
 #' @docType package
-#' @import dplyr stringr
-
-## tools <- list(
-##   `+.gs`,
-##   `-.gs`,
-##   `*.gs`,
-##   `/.gs`,  
-##   `^.gs`,
-##   `%*%`
-## )
+#' @import dplyr tidyr stringr ensurer 
 
 #' @export
 gsim <- function(data, mclist, groups = NULL) {
-  env <- new.env(parent = asNamespace("gsim"))
-  Map(function(fun, name) assign(name, fun, envir = env), utils, names(utils))
+  enclos_env <- new.env(parent = asNamespace("gsim"))
 
-  env$sim <- gsim_process(data, mclist, groups) %>%
+  enclos_env$..n.. <- nrow(data)
+  enclos_env$..nsims.. <- dim(mclist[[1]])["iteration"]
+
+  enclos_env$eval_env <- new.env(parent = asNamespace("gsim"))
+  Map(function(fun, name) assign(name, fun, envir = enclos_env$eval_env), utils, names(utils))
+
+  enclos_env$eval_env$sim <- gsim_process(data, mclist, groups) %>%
     flatten
 
-  env$..n.. <- nrow(data)
-  env$..nsims.. <- dim(mclist[[1]])["iteration"]
+  enclos_env$eval_env$`<-` <- function(a, b) assign(deparse(substitute(a)), b, envir = enclos_env$eval_env)
+  enclos_env$eval_env$list <- make_list
+  enclos_env$eval_env$cbind <- bind_cols
+  enclos_env$eval_env$rbind <- bind_rows
+  enclos_env$eval_env$rnorm <- gen_norm
 
-  env$`<-` <- function(a, b) assign(deparse(substitute(a)), b, envir = parent.frame(2)$enclos) 
-  env$c <- vec
-  env$cbind <- cvec
 
-
-  function(x) {
+  fnu <- function(x) {
 
     # todo, rewrite comment
     ## When passed a name, it is evaluated in globenv. Need to
@@ -42,17 +37,19 @@ gsim <- function(data, mclist, groups = NULL) {
 
     ## todo, try what happens when same object exists in globenv
 
+    ## todo: figure out when we need last, and when we need next-to-last
     eval_curly <- function(x) {
       x <- x[seq(2, length(x))]
-      res <- lapply(x, function(x) eval(x, env$sim, env))
-      res[[length(x) - 1]]
+      res <- lapply(x, function(x) eval(x, eval_env$sim, eval_env))
+      next_to_last <- max(1, length(x) - 1) # If only one element
+      res[[next_to_last]]                   # in curly, length(x) = 1
     }
 
 
     x <- substitute(x)
 
     ## If user passes a quoted "{", evaluate the quote to get the "{" object
-    if (try(class(eval(x)), silent = TRUE) == "{")
+    if (try(class(eval(x)), silent = TRUE)[1] == "{")
       x <- eval(x)
 
 
@@ -71,23 +68,35 @@ gsim <- function(data, mclist, groups = NULL) {
       })
       res <- res[[length(res)]]
 
+    }
+
     ## When user passes a "{" list as argument, evaluate the
     ## components sequentially and return last result
-    } else if (class(x) == "{") {
+    else if (class(x) == "{") {
        res <- eval_curly(x)
+    }
 
     ## Could be a name or a function (such as assignment)
-    } else if (is.language(x)) {
-      res <- eval(x, env$sim, env)
+    else if (is.language(x)) {
+      res <- eval(x, eval_env$sim, eval_env)
+    }
 
-    } else stop("uh oh")
+    else stop("uh oh")
 
 
     if (!inherits(res, "AsIs"))
-      res <- as.data.frame(res)
+      res <-
+        if (is.seq_gs(res))
+          as.function(res)
+        else
+          as.data.frame(res)
+
     else
       class(res) <- setdiff(class(res), "AsIs")
 
     invisible(res)
   }
+
+  environment(fnu) <- enclos_env
+  fnu
 }

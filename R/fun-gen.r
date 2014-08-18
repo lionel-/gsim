@@ -1,5 +1,5 @@
 
-rnorm <- function(n, mean, sd) {
+gen_norm <- function(n, mean, sd) {
   stopifnot(is.gsresult(mean) && is.gsparam(sd))
 
   nobs <- get_n()
@@ -7,7 +7,7 @@ rnorm <- function(n, mean, sd) {
 
   res <- matrix(NA, nobs, nsims)
   for (i in seq_len(nobs)) {
-    res[i, ] <- stats::rnorm(nsims, mean[i, ], sd)
+    res[i, ] <- rnorm(nsims, mean[i, ], sd)
   }
 
   gs(res, "gsresult")

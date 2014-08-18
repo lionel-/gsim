@@ -22,20 +22,8 @@ gsim_process <- function(data, mclist, groups = NULL) {
   }
   data <- Map(reduce, data, data_groups)
 
-  data   <- Map(gs, data,   class = "gsvar",   group = data_groups, name = names(data),   nobs = nobs, nsims = nsims)
-  mclist <- Map(gs, mclist, class = "gsparam", group = sim_groups,  name = names(mclist), nobs = nobs, nsims = nsims)
-
-
-  set_attributes <- function(obj) {
-    for (i in seq_along(obj)) {
-      attr(obj[[i]], "nobs") <- nobs
-      attr(obj[[i]], "nsims") <- nsims
-    }
-    obj
-  }
-  mclist %<>% set_attributes
-  data %<>% set_attributes
-
+  data   <- Map(gs, data,   class = "gsvar",   group = data_groups, name = names(data))
+  mclist <- Map(gs, mclist, class = "gsparam", group = sim_groups,  name = names(mclist))
 
   list(data = data, mclist = mclist)
 }
