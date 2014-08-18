@@ -48,3 +48,10 @@ convert_numeric.list_gs <- convert_numeric.list
 ensure_same_length <-
   ensuring(all(lapply(., length) == length(.[[1]]))) 
 
+
+
+## From http://stackoverflow.com/questions/10405637/use-outer-instead-of-expand-grid
+expand_grid <- function(x, y) {
+  cbind(var1 = rep.int(x, length(y)),
+        var2 = rep(y, each = length(x)))
+}

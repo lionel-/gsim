@@ -13,13 +13,16 @@ vseq <- function(gs = NULL, seq = NULL, name = NULL, n = 101) {
   if (is.null(seq))
     seq <- seq(range(gs)[1], range(gs)[2], length.out = n)
 
-  res <- list()
-  res <- lapply(seq, gs, class = "gsvar", name = name)
+  res <- data.frame(
+    seq = seq,
+    value = vapply(seq, gs, gs(1, "gsvar"), class = "gsvar", name = name)
+  )
+  names(res)[1] <- runif(1)
 
   name(res) <- name
-  class(res) <- c("gs", "seq_gs")
-  attr(res, "seq_id") <- runif(1)
+  attr(res, "seq_id") <- names(res)[1]
   attr(res, "seq") <- list(seq)
+  class(res) <- c("gs", "seq_gs", "data.frame")
 
   res
 }
@@ -117,6 +120,8 @@ seq_operate_binary <- function(a, b, fun) {
     id_a <- seq_id(a)
     id_b <- seq_id(b)
 
+    ## a b
+
     in_a <- id_b %in% id_a
     twins <- id_b[in_a]
 
@@ -130,53 +135,41 @@ seq_operate_binary <- function(a, b, fun) {
       res <- lapply(a, function(a_) fun(a_, b))
     }
 
-    else if (all(in_a)) {
-      ids <- id_a
+    ## else if (all(in_a)) {
+    else {
       pos <- match(id_b, id_a)
-      for (i in seq_along(a)) {
-        if (pos == i) {
-          
-        }
-        else {
-
-          
-
-          list(a1 = list(b1 = list(c1, c2, c3), b2 = list(c1, c2, c3)),
-               a2 = list(b1 = list(c1, c2, c3), b2 = list(c1, c2, c3)))
-
-          lapply(a, seq_lapply)
-
-          seq_lapply <- function(seq) {
-            if (is.list(seq))
-              lapply(seq, seq_lapply)
-            else 
-          }
-
-        }
-      }
-    }
-
-    else if (!any(in_a)) {
-      ids <- c(id_a, id_b)
+      not_in_b <- ids(b)[!ids(a) %in% ids(b)]
+      not_in_a <- ids(a)[!ids(b) %in% ids(a)]
       
-      res <- list()
-      for (i in seq_along(b)) {
-        res <- c(res, lapply(a, fun, b[[i]]))
-      }
+      a b
+
+      lapply(not_in_b, function(x) {
+        
+      })
+
+      ## yop <-
+      ## a   b   c   value
+      ## 1   1   1    I(gs)
+      ## 1   1   2    I(gs)
+      ## 1   1   3    I(gs)
+      ## 1   2   1    I(gs)
+
+      ## yop3 <-
+      ## c   b   d   value
+      ## 1   1   1   I(gs)
+      ## 1   1   2   I(gs)
+      ## 1   1   3   I(gs)
+      ## 1   2   1   I(gs)
+
+      ## Repeat yop3 over each a, then merge data.frames
+      ## yop + yop3 <-
+      ## a   b   c   d   value1  value2  res
+      ## 1   1   1   1   
+      ## 1   1   1   2   
+      ## 1   1   1   3   
+      ## 1   1   2   1   
     }
 
-    else if (length(id_b) > length(id_a)) {
-      positions <- match(id_b, id_a)
-      sorted_id_b <- id_b[order(positions, na.last = NA)]
-      ids <- c(sorted_id_b, id_b[!in_a])
-    }
-      
-    else if (length(id_b) < length(id_a)) {
-      browser(expr = getOption("debug_on"))
-      ids <- c(id_a, id_b[!in_a])
-    }
-
-    else stop("uh oh")
 
     seqs <- lapply(ids, function(id) {
       if (id %in% seq_id(a))
@@ -319,3 +312,6 @@ strip_attributes <- function(x) {
 
 
 seq_id <- function(x) attr(x, "seq_id")
+
+ids <- function(x) names(x)[-match("value", names(x))]
+
