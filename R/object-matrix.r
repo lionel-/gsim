@@ -9,9 +9,9 @@ bind_cols.gsvar <- function(...) {
   dots <- extract_dots(...)
 
   ## Handling sequences
-  pos <- vapply(dots, is.seq_gs, logical(1))
-  if (any(pos))
-    return(seq_operate_variadic(dots, pos, bind_cols.gsvar))
+  seq_p <- vapply(dots, is.seq_gs, logical(1))
+  if (any(seq_p))
+    return(do.call("seq_operate", c(dots, list(fun = bind_cols.gsvar))))
 
   names <- vapply(dots, get_name, character(1)) %>%
     make_names_unique
@@ -19,7 +19,7 @@ bind_cols.gsvar <- function(...) {
   dots %>%
     set_names(names) %>%
     convert_numeric %>%
-    make_list %>%
+    list_gs %>%
     ensure_same_length
 }
 
@@ -53,9 +53,12 @@ bind_rows.gsvar <- function(...) {
   dots <- extract_dots(...)
 
   ## Handling sequences
-  pos <- vapply(dots, is.seq_gs, logical(1))
-  if (any(pos))
-    return(seq_operate_variadic(dots, pos, bind_cols.gsvar))
+  ## pos <- vapply(dots, is.seq_gs, logical(1))
+  ## if (any(pos))
+  ##   return(seq_operate_variadic(dots, pos, bind_cols.gsvar))
+  seq_p <- vapply(dots, is.seq_gs, logical(1))
+  if (any(seq_p))
+    return(do.call("seq_operate", c(dots, list(fun = bind_cols.gsvar))))
 
   do.call("c", dots) %>%
     convert_numeric

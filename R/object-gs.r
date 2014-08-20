@@ -83,7 +83,7 @@ gsim_class <- function(x) {
   else if (is.gsvar(x)) return("gsvar")
   else if (is.gsresult(x)) return("gsresult")
   else if (is.numeric(x)) return("numeric")
-  else stop("Not a gsim object")
+  else NULL
 }
 
 set_gs_class <- function(gs, class, grouped = NULL) {

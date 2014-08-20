@@ -6,7 +6,7 @@ operator <- function(fun) {
 
     ## Handling sequences
     if (is.seq_gs(a) || is.seq_gs(b))
-      return(seq_operate_binary(a, b, function(a, b) operate(a, b, fun)))
+      return(seq_operate(a, b, fun = function(a, b) operate(a, b, fun)))
 
     if (is.list_gs(a) || is.list_gs(b))
       stop("todo")
@@ -74,15 +74,10 @@ operate_on_gs <- function(a, b, fun) {
 
   ## Maybe work this out through should_expand to prevent expanding
   ## when the grouped object is operated with a scalar
-  is_any.scalar <- function(...) {
-    any(vapply(list(...), function(x) {
-      is.null(dim(x)) && length(x) == 1
-    }, logical(1)))
-  }
-
   if (is_any.scalar(a, b)) {
+    class <- gsim_class(Find(Negate(is.scalar), list(a, b)))
     result <- fun(a, b)
-    result <- gs(result, "gsvar")
+    result <- gs(result, class)
     return(result)
   }
 
@@ -256,7 +251,7 @@ operate_on_grouped_var_result <- function(a, b, fun) {
 
   ## Handling sequences
   if (is.seq_gs(x) || is.seq_gs(y))
-    return(seq_operate_binary(x, y, `%*%.gs`))
+    return(seq_operate(x, y, fun = `%*%.gs`))
   
   
   ## Transform list of coefficients into proper matrices

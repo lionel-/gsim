@@ -50,8 +50,32 @@ ensure_same_length <-
 
 
 
-## From http://stackoverflow.com/questions/10405637/use-outer-instead-of-expand-grid
-expand_grid <- function(x, y) {
-  cbind(var1 = rep.int(x, length(y)),
-        var2 = rep(y, each = length(x)))
+safe_rep.int <- failwith(NULL, f = base::rep.int, quiet = TRUE)
+
+
+set_attr <- `attr<-`
+
+
+## From https://gist.github.com/skranz/9681509
+dplyr_hack_eval <- function(.data, .fun_name, ...) {
+  args <- list(...) %>%
+    unlist %>%
+    lapply(as.name)
+  do.call(.fun_name, c(list(.data), args))
 }
+
+arrange_q <- function(.data, ...) dplyr_hack_eval(.data, "arrange", ...)
+
+
+extract <- magrittr::extract
+
+
+single <- function(x) {
+  stopifnot(length(x) == 1)
+  first(x)
+}
+
+
+
+is.scalar <- function(x) gsim_class(x) == "numeric" && is.null(dim(x)) && length(x) == 1
+is_any.scalar <- function(...) any(vapply(list(...), is.scalar, logical(1)))

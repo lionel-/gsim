@@ -1,7 +1,5 @@
 
-## #' @param ... objects to concatenate
-#' @export
-make_list <- function(...) {
+list_gs <- function(...) {
   args <- extract_dots(..., simplify = TRUE)
 
   ## ## If args simplified, can't work with numeric vectors to check class
@@ -9,6 +7,15 @@ make_list <- function(...) {
   ## class <- gsim_class(args[[1]])
   ## same_type <- lapply(args, gsim_class) == class
   ## stopifnot(all(same_type))
+  ## browser(expr = getOption("debug_on"))
+
+  args <- Reduce(function(a, b) {
+    if (!inherits(a, c("list", "list_gs")))
+      a <- list(a)
+    if (!inherits(b, c("list", "list_gs")))
+      b <- list(b)
+    c(a, b)
+  }, args[-1], args[[1]])
 
   gs(args, "gsvar")
 }
@@ -18,14 +25,14 @@ as.data.frame.list_gs <- function(gs, ...) {
   ## Todo: very fishy
   ## What did I mean by grouped list back then??
 
-  ## ## Remove attributes to prevent a tidyr warning
-  ## res <- lapply(gs, function(col) {
-  ##   attr(col, "name") <- NULL
-  ##   col
-  ## })
 
   if (is.gsparam(gs)) {
-    res <- as.data.frame.list(res) %>%
+    ## Remove attributes to prevent a tidyr warning
+    res <- lapply(gs, function(col) {
+      attr(col, "name") <- NULL
+      col
+    }) %>%
+      as.data.frame.list %>%
       set_names(names(gs))
 
     if (is.grouped_gs(gs)) {
@@ -50,9 +57,10 @@ as.data.frame.list_gs <- function(gs, ...) {
         as.data.frame.list %>%
         set_names(names)
     }
+
+    res <- cbind(res, obs = seq_len(nrow(res)))
   }
 
-  res <- cbind(res, obs = seq_len(nrow(res)))
   res
 }
 

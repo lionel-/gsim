@@ -1,10 +1,10 @@
 
 
 as.data.frame.gs <- function(gs, ...) {
-  if (is.seq_gs(gs))
-    as.data.frame.seq_gs(gs, ...)
+  ## if (is.seq_gs(gs))
+  ##   as.data.frame.data.frame(gs, ...)
 
-  else if (is.list_gs(gs))
+  if (is.list_gs(gs))
     as.data.frame.list_gs(gs, ...)
 
   else NextMethod()
