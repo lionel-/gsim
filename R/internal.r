@@ -57,14 +57,15 @@ set_attr <- `attr<-`
 
 
 ## From https://gist.github.com/skranz/9681509
-dplyr_hack_eval <- function(.data, .fun_name, ...) {
-  args <- list(...) %>%
-    unlist %>%
-    lapply(as.name)
-  do.call(.fun_name, c(list(.data), args))
+dplyr_hack_eval <- function(.data, fun_name, ...) {
+  fun_name <- paste0("dplyr::", fun_name)
+  args <- list(...) %>% unlist
+  code <- paste0(fun_name, "(.data,", paste0(args, collapse = ","), ")")
+  eval(parse(text = code, srcfile = NULL))
 }
 
-arrange_q <- function(.data, ...) dplyr_hack_eval(.data, "arrange", ...)
+arrange_s <- function(.data, ...) dplyr_hack_eval(.data, "arrange", ...)
+summarise_s <- function(.data, ...) dplyr_hack_eval(.data, "summarise", ...)
 
 
 extract <- magrittr::extract

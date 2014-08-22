@@ -87,8 +87,8 @@ seq_operate <- function(..., fun) {
 
 
     ## Arranging common sequences (columns twins) in the same order
-    a <- a %>% arrange_q(c(twins, inputs_not_in_b))
-    b <- b %>% arrange_q(c(twins, inputs_not_in_a))
+    a <- a %>% arrange_s(c(twins, inputs_not_in_b))
+    b <- b %>% arrange_s(c(twins, inputs_not_in_a))
 
 
     seq_length <- function(obj) {

@@ -23,6 +23,35 @@
 ## }
 
 
+## Hacky-dirty until Hadley includes programmable versions in dplyr
+summarise_obs <- function(gs, ...) {
+  if (is.gsvar(gs))
+    res <- summarise(gs, ...)
+
+  if (is.gsresult(gs)) {
+    res <- as.data.frame(gs) %>%
+      dplyr::group_by(sim, add = TRUE) %>%
+      summarise.gs(...)
+  }
+
+  res
+}
+
+summarise.gs <- function(gs, ...) {
+  dots <- dots(...)
+  args <- paste0(names(dots), " = ",
+                vapply(dots, deparse, character(1)),
+                "(", name(gs), ")")
+  args <- do.call(paste, c(args, list(sep = ", ")))
+
+  if (!is.data.frame(gs))
+    gs <- as.data.frame(gs)
+
+  gs %>% summarise_s(args)
+}
+
+
+
 #' @export
 by_sims <- function(fun, ...) {
   function(x, ...) {
@@ -62,12 +91,12 @@ var.gsresult <- function(gs, along = "sims", ...) {
     if (along == "sims") rowVars
     else colVars
 
-    if (is.grouped_gs(gs)) {
-      res <- lapply(indices(gs), function(ind) var_fun(gs[ind, ]))
-      names(res) <- labels(gs)
-    } else {
-      res <- var_fun(gs)
-    }
+  if (is.grouped_gs(gs)) {
+    res <- lapply(indices(gs), function(ind) var_fun(gs[ind, ]))
+    names(res) <- labels(gs)
+  } else {
+    res <- var_fun(gs)
+  }
 
   class <-
     if (along == "sims") "gsvar"

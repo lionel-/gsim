@@ -99,12 +99,12 @@ set_gs_class <- function(gs, class, grouped = NULL) {
 
 
 as.data.frame.gsvar <- function(gs, ...) {
-  gs <- gs %>%
-    as.data.frame.numeric %>%
+  gs %>%
+    as.numeric %>%
+    as.data.frame %>%
     set_names(name(gs)) %>%
-    cbind(obs = seq_len(length(gs)))
-
-  gs
+    cbind(obs = seq_len(length(gs)), .) %>%
+    gs_regroup(group(gs))
 }
 
 as.data.frame.gsresult <- function(gs, ...) {
@@ -115,5 +115,17 @@ as.data.frame.gsresult <- function(gs, ...) {
     as.data.frame.matrix %>%
     set_colnames(seq_len(nsims)) %>%
     cbind(obs = seq_len(nobs)) %>%
-    gather_("sim", name(gs), seq_len(nsims))
+    gather_("sim", name(gs), seq_len(nsims)) %>%
+    gs_regroup(group(gs))
+}
+
+
+gs_regroup <- function(res, group) {
+  if (!is.null(group)) {
+    ## group is as.vector'd to convert it to character or numeric
+    res <- cbind(as.vector(dyn_get(group)), res)
+    names(res)[1] <- group
+    res %<>% regroup(list(group))
+  }
+  res
 }

@@ -71,7 +71,3 @@ flatten <- function(x) {
   x
 }
 
-
-assign_gsim_utils <- function() {
-  ""
-}

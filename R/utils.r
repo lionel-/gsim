@@ -18,21 +18,23 @@ nsims <- function(gs) {
 
 
 ## Look up objects dynamically through the calling stack
-get_metadata <- function(obj) {
-  function() {
-    n <- 1
+dyn_get <- function(obj) {
+  n <- 1
+  env <- parent.frame(n)
+
+  while(!identical(env, globalenv())) {
+    if (exists(obj, envir = env))
+      return(get(obj, envir = env))
+
+    n <- n + 1
     env <- parent.frame(n)
-
-    while(!identical(env, globalenv())) {
-      if (exists(obj, envir = env))
-        return(get(obj, envir = env))
-
-      n <- n + 1
-      env <- parent.frame(n)
-    }
-
-    stop(paste("Cannot find", obj))
   }
+
+  stop(paste("Cannot find", obj))
+}
+
+get_metadata <- function(obj) {
+  function() dyn_get(obj)
 }
 
 get_n <- get_metadata("..n..")
@@ -110,10 +112,11 @@ make_names_unique <- function(names) {
 
 group <- function(gs) attr(gs, "group")
 
-set_group <- function(gs, group) {
+group_by <- function(gs, group) {
   ## browser(expr = getOption("debug_on"))
   ## todo: make sure index is always from 1 to # levels
   ## as.factor is kind of a quick hack?
+  group <- deparse(substitute(group))
   group_var <- get(group, envir = parent.frame())
   index <- as.factor(group_var) %>% as.numeric
   index_seq <- seq_len(get_n())
