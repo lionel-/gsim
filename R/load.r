@@ -1,16 +1,13 @@
 
 
 gsim_process <- function(data, mclist, groups = NULL) {
-
-  # todo: detect when mclist has been collapsed AND simplified
-  if (length(dim(mclist[[1]])) == 3)
+  if (first(mclist) %>% is.list)
     mclist <- mcmc_collapse(mclist, simplify = FALSE)
 
   nobs <- nrow(data)
-  nsims <- unname(dim(mclist[[1]])[2])
+  nsims <- first(dim(first(mclist)))
 
   data_groups <- get_gs_group(data, groups, type = "vars")
-  mclist      <- lapply(mclist, subset_mcarray, drop = TRUE)
   sim_groups  <- get_gs_group(mclist, groups, type = "params")
 
   ## Reduce grouped variables to a vector with one value per group

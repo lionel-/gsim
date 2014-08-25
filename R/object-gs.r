@@ -2,6 +2,7 @@
 
 gs <- function(object, class, group = NULL, name = "gs") {
   assert_that(class %in% c("gsvar", "gsparam", "gsresult"))
+  ## if (class == "gsparam") browser(expr = getOption("debug_on"))
 
   # gsresults are the only legit matrices in gsim?
 
@@ -10,31 +11,43 @@ gs <- function(object, class, group = NULL, name = "gs") {
   # require explicit coercion into lists?
   # Automatic simplification of one-col matrices
 
-  if (is.matrix(object)) {
-    ## todo: should not be the case anymore
-    ## Remove rownames, sometimes occurring after a matrix operation
-    attr(object, "dimnames")[[1]] <- NULL
+  if (length(dim(object)) > 3)
+      stop()
 
+  ## else if (length(dim(object)) > 1) {
+  ## todo: find another place and a more general way to simplify
+  ## if (is.gsvar(object) && ncol(object) == 1) {
+  ##   ## Simplify single column matrices into vectors
+  ##   attr(object, "dim") <- NULL
+  ## }
 
-    if (ncol(object) == 1) {
-      ## Simplify single column matrices into vectors
-      attr(object, "dim") <- NULL
+  else if (length(dim(object)) > 1) {
 
-    } else if (!class == "gsresult") {
+    if (class %in% c("gsvar", "gsparam")) {
+      ## browser(expr = getOption("debug_on"))
       ## Simplify matrices to lists
-      names <- dimnames(object)[[2]]
-      if (is.null(names)) names <- list(NULL)
+      dim_names <- dimnames(object)
+      names <- last(dim_names) %||% list(NULL)
 
-      object %<>% apply(1, list)           # How come?
+      ## objectbak <- object
+      ## object <- objectbak
+
+      ## if (class == "gsparam" && length(dim(object)) %in% c(2, 3))
+      ##   object %<>% rbind_cols
+      
+
+      object %<>% apply(MARGIN = length(dim_names), list)
+
+      ## fixme: first(obj) because apply list yields a list of list...
       object <-
-        Map(function(obj, ...) gs(obj[[1]], ...),
+        Map(function(obj, ...) gs(first(obj), ...),
             object, class = class, name = names) %>%
-        simplify_list
+          simplify_list
     }
 
   } else if (is.list(object) || is.list_gs(object)) {
     if (length(object) == 1) {
-      object <- object[[1]]
+      object <- first(object)
 
     } else {
       names <- vapply(object, get_name, character(1)) %>%

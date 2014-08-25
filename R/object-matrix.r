@@ -1,17 +1,13 @@
 
 
-bind_cols <- function(...) {
-  UseMethod("bind_cols")
-}
-
 ## todo: named arguments
-bind_cols.gsvar <- function(...) {
+cbind.gsvar <- function(...) {
   dots <- extract_dots(...)
 
   ## Handling sequences
   seq_p <- vapply(dots, is.seq_gs, logical(1))
   if (any(seq_p))
-    return(do.call("seq_operate", c(dots, list(fun = bind_cols.gsvar))))
+    return(do.call("seq_operate", c(dots, list(fun = cbind.gsvar))))
 
   names <- vapply(dots, get_name, character(1)) %>%
     make_names_unique
@@ -23,17 +19,12 @@ bind_cols.gsvar <- function(...) {
     ensure_same_length
 }
 
-bind_cols.numeric <- bind_cols.gsvar
 
-bind_cols.gs_seq <- function(...) {
-  browser()
-
-  test <- list(...)
-
-  gs
+cbind.gs_seq <- function(...) {
+  stop()
 }
 
-bind_cols.gsparam <- function(...) {
+cbind.gsparam <- function(...) {
   args <- extract_dots(...)
   if (!is.list_gs(args))
     args <- concatenate(args)
@@ -45,26 +36,41 @@ bind_cols.gsparam <- function(...) {
 
 
 
-bind_rows <- function(...) {
-  UseMethod("bind_rows")
-}
-
-bind_rows.gsvar <- function(...) {
+rbind.gsvar <- function(...) {
   dots <- extract_dots(...)
 
-  ## Handling sequences
-  ## pos <- vapply(dots, is.seq_gs, logical(1))
-  ## if (any(pos))
-  ##   return(seq_operate_variadic(dots, pos, bind_cols.gsvar))
   seq_p <- vapply(dots, is.seq_gs, logical(1))
   if (any(seq_p))
-    return(do.call("seq_operate", c(dots, list(fun = bind_cols.gsvar))))
+    return(do.call("seq_operate", c(dots, list(fun = rbind.gsvar))))
 
   do.call("c", dots) %>%
     convert_numeric
 }
 
-bind_rows.numeric <- bind_rows.gsvar
+
+rbind.gsparam <- function(...) {
+  dots <- extract_dots(...)
+
+  seq_p <- vapply(dots, is.seq_gs, logical(1))
+  if (any(seq_p))
+    return(do.call(seq_operate, c(dots, list(fun = rbind.gsparam))))
+
+  do.call(cbind, lapply(dots, unclass))
+}
+
+
+
+rbind_cols <- function(list_gs) {
+  res <- do.call("rbind", list_gs)
+
+  attr(res, "blocks_names") <- last(dimnames(res))
+  ## Todo: non constant gaps
+  ##       objects of dim > 1
+  gap <- dim(first(list_gs)) %>% extract(length(.)) %||% 1
+  attr(res, "blocks_indices") <- cumsum(rep(gap, length(list_gs)))
+  attr(res, "dimnames") <- NULL
+  res
+}
 
 
 

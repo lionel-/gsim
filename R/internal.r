@@ -18,8 +18,11 @@ extract_dots <- function(..., simplify = FALSE) {
 
 
 simplify_list <- function(list) {
-  if (length(list) == 1) list[[1]]
-  else list
+  stopifnot(list %>% is.list)
+  if (length(list) == 1)
+    first(list)
+  else
+    list
 }
 
 
@@ -68,6 +71,7 @@ arrange_s <- function(.data, ...) dplyr_hack_eval(.data, "arrange", ...)
 summarise_s <- function(.data, ...) dplyr_hack_eval(.data, "summarise", ...)
 
 
+## fixme; Avoid conflict with tidyr
 extract <- magrittr::extract
 
 
@@ -80,3 +84,26 @@ single <- function(x) {
 
 is.scalar <- function(x) gsim_class(x) == "numeric" && is.null(dim(x)) && length(x) == 1
 is_any.scalar <- function(...) any(vapply(list(...), is.scalar, logical(1)))
+
+
+## From Hadley
+`%||%` <- function(a, b) {
+  if (!is.null(a) && !is.na(a) && length(a) > 0)
+    a
+  else
+    b
+}
+
+
+
+block_index <- function(gs, name) {
+  which <- match(name, attr(gs, "blocks_name")) %||% return(NULL)
+  indices <- attr(gs, "blocks_indices")
+
+  start <- indices[which]
+  stop <- (indices[which + 1] - 1) %||%
+    (dim(gs)[2] %||% length(gs))
+
+  seq(start, stop)
+}
+

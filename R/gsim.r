@@ -19,8 +19,8 @@ gsim <- function(data, mclist, groups = NULL) {
 
   enclos_env$eval_env$`<-` <- function(a, b) assign(deparse(substitute(a)), b, envir = enclos_env$eval_env)
   enclos_env$eval_env$list <- list_gs
-  enclos_env$eval_env$cbind <- bind_cols
-  enclos_env$eval_env$rbind <- bind_rows
+  enclos_env$eval_env$rbind.numeric <- rbind.gsvar
+  enclos_env$eval_env$cbind.numeric <- cbind.gsvar
   enclos_env$eval_env$rnorm <- gen_norm
 
 
@@ -94,5 +94,5 @@ gsim <- function(data, mclist, groups = NULL) {
   }
 
   environment(fnu) <- enclos_env
-  fnu
+  invisible(fnu)
 }
