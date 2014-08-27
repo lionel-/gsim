@@ -53,11 +53,13 @@ is.seq_gs <- function(x) inherits(x, "seq_gs")
 ## Performance is typically not an issue with sequences, so we use
 ## dplyr to manipulate and sort sequence objects.
 
+## However, Reduce is inefficient with variadic functions such as
+## cbind: it will call `operate` nseq * nvar times
+
 seq_operate <- function(..., fun) {
   args <- dots(...)
 
   compound_seqs <- function(a, b) {
-
     if (!any(is.seq_gs(a), is.seq_gs(b))) {
       return(fun(a, b))
     }
@@ -186,7 +188,7 @@ as.function.posterior <- function(obj) {
 
     res <- do.call("process_seq_in", c(alist(obj = obj), args)) 
     if (out == "random_sim")
-      res <- res[, sample(res %>% ncol %>% seq_len, 1)]
+      res <- res[[sample(seq_along(res), 1)]]
     else
       stop()
     
@@ -232,7 +234,12 @@ process_seq_in <- function(obj, x) {
   if (sum(need_interpolate) == 1) {
     interp_input <- inputs[need_interpolate]
     pos <- match_nearest(x, subset[[interp_input]])
-    (nth(obj$value, pos[1]) + nth(obj$value, pos[2])) / 2
+
+    if (is.posterior(first(obj$value)))
+      do_by_sims(nth(obj$value, pos[1]), nth(obj$value, pos[2]),
+                 fun = function(a, b) (a + b) / 2)
+    else
+      (nth(obj$value, pos[1]) + nth(obj$value, pos[2])) / 2
 
   } else {
     single(subset$value)
@@ -251,14 +258,20 @@ process_seq_out <- function(res) {
 
 match_nearest <- function(x, seq) {
   pos <- which(abs(seq - x) == min(abs(seq - x)))
+  if (length(pos) == 2) {
+    pos2 <- pos[2]
+    pos <- pos[1]
+  }
 
-  pos2 <-
-    if (x - seq[pos] > 0)
-      pos + 1
-    else if (x - seq[pos] < 0)
-      pos - 1
-    else  if (x == seq[pos])
-      stop()
+  else {
+    pos2 <-
+      if (x - seq[pos] > 0)
+        pos + 1
+      else if (x - seq[pos] < 0)
+        pos - 1
+      else  if (x == seq[pos])
+        stop()
+  }
 
   c(pos, pos2)
 }

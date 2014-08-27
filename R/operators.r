@@ -12,8 +12,18 @@ operator <- function(fun) {
 
 
 sanitize <- function(object, dim_other) {
-  if (is.posterior(object))
-    return(do_by_sims(object, fun = sanitize))
+  if (is.posterior(object)) {
+    res <- do_by_sims(object, fun = function(x) {
+      x <-
+        if (length(dim(x)) == 2 && all(dim(x) == c(1, 1)))
+          as.vector(x)
+        else x
+      ## Speeds up computation (no need of data dispatch at this point)
+      x %>% set_class(NULL)
+    }) %>%
+      set_class("posterior")
+    return(res)
+  }
 
 
   if (length(dim(object)) == 2 && all(dim(object) == c(1, 1)))
@@ -34,8 +44,7 @@ sanitize <- function(object, dim_other) {
 
 
 operate <- function(..., fun) {
-  dots <- dots(...) %>%
-    lapply(sanitize)
+  dots <- dots(...) %>% lapply(sanitize)
 
   if (all(vapply(dots, function(x) gsim_class(x) == "data", logical(1))))
     do.call("fun", dots) %>% gs("data")
@@ -48,7 +57,7 @@ do_by_sims <- function(..., fun, args = NULL) {
   dots <- dots(...) %>%
     lapply(function(x) {
       if (is.data(x))
-        list(x)
+        list(x %>% set_class("numeric"))
       else
         x
     })
@@ -65,13 +74,21 @@ do_by_sims <- function(..., fun, args = NULL) {
 }
 
 
-"+.gs" <- operator(`+`)
+make_beep <- function(fun) {
+  function(...) {
+    beep()
+    fun(...)
+  }
+}
+
+"+.gs" <- make_beep(operator(`+`))
 "-.gs" <- operator(`-`)
 "*.gs" <- operator(`*`)
 "/.gs" <- operator(`/`)
 "^.gs" <- operator(`^`)
-"%*%.gs" <- operator(`%*%`)
+"%*%.gs" <- make_beep(operator(`%*%`))
 "cbind.gs" <- operator(cbind)
+"rbind.gs" <- operator(rbind)
 
 
 `%*%` <- function(x, y) UseMethod("%*%")
