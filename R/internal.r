@@ -1,28 +1,30 @@
 
-extract_dots <- function(..., simplify = FALSE) {
-  args <- list(...)
-  
-  # Transform numeric values to gsvars
-  args <- lapply(args, function(arg) {
-    if (is.numeric(arg))
-      gs(arg, "gsvar")
-    else
-      arg
-  })
+## Look up objects dynamically through the calling stack
+dyn_get <- function(obj) {
+  n <- 1
+  env <- parent.frame(n)
 
-  if (simplify)
-    simplify_list(args)
-  else
-    args
+  while(!identical(env, globalenv())) {
+    if (exists(obj, envir = env))
+      return(get(obj, envir = env))
+
+    n <- n + 1
+    env <- parent.frame(n)
+  }
+
+  stop(paste("Cannot find", obj))
 }
 
+get_metadata <- function(obj) {
+  function() dyn_get(obj)
+}
 
-simplify_list <- function(list) {
-  stopifnot(list %>% is.list)
-  if (length(list) == 1)
-    first(list)
-  else
-    list
+n <- get_n <- get_metadata("..n..")
+nsims <- get_nsims <- get_metadata("..nsims..")
+
+
+get_in_input <- function(what) {
+  get(what, envir = list2env(dyn_get("..eval_env..")$input))
 }
 
 
@@ -33,13 +35,13 @@ convert_numeric <- function(x) {
 convert_numeric.default <- identity
 
 convert_numeric.numeric <- function(x) {
-  gs(x, "gsvar")
+  gs(x, "data")
 }
 
 convert_numeric.list <- function(list) {
   lapply(list, function(item)
     if (is.numeric(item))
-      gs(item, "gsvar")
+      gs(item, "data")
     else
       item)
 }
@@ -95,15 +97,63 @@ is_any.scalar <- function(...) any(vapply(list(...), is.scalar, logical(1)))
 }
 
 
+dim_length <- function(x) length(dim(x))
 
-block_index <- function(gs, name) {
-  which <- match(name, attr(gs, "blocks_name")) %||% return(NULL)
-  indices <- attr(gs, "blocks_indices")
 
-  start <- indices[which]
-  stop <- (indices[which + 1] - 1) %||%
-    (dim(gs)[2] %||% length(gs))
-
-  seq(start, stop)
+as.gsarray <- function(x) {
+  if (is.array(x))
+    x
+  else {
+    nm <- names(x)
+    ind <- seq(0, length(x))
+    x <- array(x, c(length(x), 1))
+    attr(x, "blocks_names") <- nm
+    attr(x, "blocks_indices") <- ind
+    x
+  }
 }
 
+
+is.col_vector <- function(x) (dim(x)[2] == 1) %||% FALSE
+
+
+dots_q <- function(...) eval(substitute(alist(...)))
+
+dots <- function(..., simplify = FALSE) {
+  args <- list(...)
+  
+  # Transform numeric values to datas
+  args <- lapply(args, function(arg) {
+    if (is.numeric(arg))
+      gs(arg, "data")
+    else
+      arg
+  })
+
+  if (simplify)
+    simplify_list(args)
+  else
+    args
+}
+
+simplify_list <- function(list) {
+  stopifnot(list %>% is.list)
+  if (length(list) == 1)
+    first(list)
+  else
+    list
+}
+
+
+left_join.posterior <- function(x, y, by = NULL, ...) {
+  x %<>% set_class("data.frame", append = TRUE)
+  y %<>% set_class("data.frame", append = TRUE)
+  left_join(tbl_df(x), y, by = by, ...)
+} 
+
+
+quickdf <- function(x) {
+  x %>%
+    set_class("data.frame") %>%
+    set_attr("row.names", .set_row_names(length(x[[1]])))
+}

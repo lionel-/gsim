@@ -4,12 +4,8 @@ as.mclist <- function(x, ...) {
 }
 
 as.mclist.sim.merMod <- function(sims) {
-  params <- slotNames(sims)
+  mclist <- process_arm_sims(sims)
   nsims <- first(dim(sims@fixef))
-
-  mclist <- lapply(params, function(param) slot(sims, param)) %>%
-    set_names(params) %>%
-    Filter(f = function(x) !(is.null(first(x))))
 
   ranef <- lapply(mclist$ranef, function(x) {
     npar <- dim(x)[3]
@@ -31,81 +27,21 @@ as.mclist.sim.merMod <- function(sims) {
   c(mclist, ranef)
 }
 
-
-process_sims <- function(mclist) {
-  browser(expr = getOption("debug_on"))
-
-  fill_dims <- function(x) {
-    dims <- dim(x)
-    if (is.null(dims)) {
-      dims <- c(1, length(x), 1)
-    } else {
-      n <- length(dims)
-      if (n < 3)
-        dims <- c(dims, rep(1, length.out = 3 - n))
-    }
-    dims
-  }
-
-  make_mcarray <- function(mcarray, names) {
-    names(dim(mcarray)) <- c("", "iteration", "chain")
-    dimnames(mcarray) <- list(names, NULL, NULL)
-    class(mcarray) <- "mcarray" 
-    mcarray
-  }
-
-  ## matrices_idx <- vapply(mclist, is.matrix, logical(1))
-  ## mclist[matrices_idx]
-
-  dims <- lapply(mclist, fill_dims)
-  dim_names <- lapply(mclist, function(l) dimnames(l)[[1]])
-
-  mclist %<>% Map(f = array, ., dims) %>%
-    Map(f = make_mcarray, ., dim_names)
-
-  class(mclist) <- c("list", "mclist")
+as.mclist.sim <- function(sims) {
+  mclist <- process_arm_sims(sims)
+  names(mclist)[match("coef", names(mclist))] <- "beta"
+  dimnames(mclist$beta)[[2]] %<>% clean_coefnames
   mclist
 }
 
-
-as.mclist.sim <- function(sims) {
-  ## browser(expr = getOption("debug_on"))
+process_arm_sims <- function(sims) {
   params <- slotNames(sims)
-  mclist <- lapply(params, function(param) slot(sims, param)) %>%
+
+  lapply(params, function(param) slot(sims, param)) %>%
     set_names(params) %>%
     Filter(f = function(x) !(is.null(first(x))))
-
-  fill_dims <- function(x) {
-    dims <- dim(x)
-    if (is.null(dims)) {
-      dims <- c(1, length(x), 1)
-    } else {
-      n <- length(dims)
-      if (n < 3)
-        dims <- c(dims, rep(1, length.out = 3 - n))
-    }
-    dims
-  }
-
-  make_mcarray <- function(mcarray, names) {
-    names(dim(mcarray)) <- c("", "iteration", "chain")
-    dimnames(mcarray) <- list(names, NULL, NULL)
-    class(mcarray) <- "mcarray" 
-    mcarray
-  }
-
-  matrices_idx <- vapply(mclist, is.matrix, logical(1))
-  mclist[matrices_idx] %<>% lapply(t)
-
-  dims <- lapply(mclist, fill_dims)
-  dim_names <- lapply(mclist, function(l) dimnames(l)[[1]])
-
-  mclist %<>% Map(f = array, ., dims) %>%
-    Map(f = make_mcarray, ., dim_names)
-
-  class(mclist) <- c("list", "mclist")
-  mclist
 }
+
 
 as.mclist.stanfit <- function(fit) {
   require(stringr)
@@ -164,3 +100,31 @@ clean_coefnames <- function(names) {
   Map(function(p, r) names <<- str_replace(names, p, r), patterns, replacements)
   names
 }
+
+
+## fixme; temporary fix until new arm is released
+setMethod("sim", signature(object = "lm"),
+    function(object, n.sims=100) {
+    object.class <- class(object)[[1]]
+    summ <- summary (object)
+    coef <- summ$coef[,1:2,drop=FALSE]
+    dimnames(coef)[[2]] <- c("coef.est","coef.sd")
+    sigma.hat <- summ$sigma
+    beta.hat <- coef[,1,drop = FALSE]
+    V.beta <- summ$cov.unscaled
+    n <- summ$df[1] + summ$df[2]
+    k <- summ$df[1]
+    sigma <- rep (NA, n.sims)
+    beta <- array (NA, c(n.sims,k))
+    dimnames(beta) <- list (NULL, clean_coefnames(rownames(beta.hat))) # Replace names by rownames
+    for (s in 1:n.sims){
+      sigma[s] <- sigma.hat*sqrt((n-k)/rchisq(1,n-k))
+      beta[s,] <- mvrnorm (1, beta.hat, V.beta*sigma[s]^2)
+    }
+    
+    ans <- new("sim", 
+                coef = beta,
+                sigma = sigma)
+    return (ans)
+    }
+)

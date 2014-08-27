@@ -2,9 +2,9 @@
 ## Problem: omega <- (sd(a_resid) / mean(sigma_a))^2
 ## mean(sigma_a) is a scalar and will be expanded to an n-vector
 
-## "[.gsvar" <- function(gs, ...) {
+## "[.data" <- function(gs, ...) {
 ##   res <- gs[...]
-##   gs(res, "gsvar")
+##   gs(res, "data")
 ## }
 
 ## "[.gsresult" <- function(gs, ...) {
@@ -12,36 +12,67 @@
 ##   gs(res, "gsresult")
 ## }
 
-## "[.gsparam" <- function(gs, ...) {
+## "[.posterior" <- function(gs, ...) {
 ##   if (is.grouped_gs(gs)) {
 ##     res <- gs[..., ]
 ##     gs  <- gs(res, "gsresult")
 ##   } else {
 ##     res <- gs[...]
-##     gs  <- gs(res, "gsparam")
+##     gs  <- gs(res, "posterior")
 ##   }
 ## }
 
 
-## Hacky-dirty until Hadley includes programmable versions in dplyr
 summarise_obs <- function(gs, ...) {
-  if (is.gsvar(gs))
-    res <- summarise(gs, ...)
+  class <- gsim_class(gs)
 
-  if (is.gsresult(gs)) {
-    res <- as.data.frame(gs) %>%
+  if (!is.data.frame(gs))
+    gs <- as.data.frame(gs)
+
+  if (class == "data")
+    summarise.gs(gs, ...)
+  else if (is.posterior(gs)) {
+    gs %>%
       dplyr::group_by(sim, add = TRUE) %>%
       summarise.gs(...)
   }
-
-  res
 }
 
+summarise_sims <- function(gs, ...) {
+  class <- gsim_class(gs)
+
+  if (!is.data.frame(gs))
+    gs <- as.data.frame(gs)
+
+  if (class == "data")
+    stop("No simulations to summarise")
+  else if (is.posterior(gs)) {
+    gs %>%
+      dplyr::group_by(obs, add = TRUE) %>%
+      summarise.gs(...)
+  }
+}
+
+## Hacky-dirty until Hadley includes programmable versions in dplyr
 summarise.gs <- function(gs, ...) {
-  dots <- dots(...)
+  dots <- dots_q(...)
+
+  ## yah (yet another hack)
+  exc <- vapply(attr(gs, "vars"), function(x) if (is.character(x)) x else "", character(1))
+  exc <- c(exc, "sim", "obs")
+  name <- colnames(gs) %>%
+    setdiff(exc)
+
+  ## Conversion of dots to first colname
+  ## fixme that Ugly hack
+  dots <- lapply(dots, function(x) {
+    txt <- deparse(x)
+    gsub("\\(\\.\\)", paste0("(", name, ")"), txt)
+  })
+
+  
   args <- paste0(names(dots), " = ",
-                vapply(dots, deparse, character(1)),
-                "(", name(gs), ")")
+                vapply(dots, identity, character(1)))
   args <- do.call(paste, c(args, list(sep = ", ")))
 
   if (!is.data.frame(gs))
@@ -73,13 +104,13 @@ var <- function(x, ...) {
   UseMethod("var")
 }
 
-var.gsvar <- function(gs, ...) {
+var.data <- function(gs, ...) {
   if (is.grouped_gs(gs)) {
     res <- lapply(indices(gs), function(ind) {
       stats::var(gs[ind], ...)
     })
     names(res) <- labels(gs)
-    gs(res, "gsvar", group(gs))
+    gs(res, "data", group(gs))
 
   } else {
     stats::var(gs, ...)
@@ -99,8 +130,8 @@ var.gsresult <- function(gs, along = "sims", ...) {
   }
 
   class <-
-    if (along == "sims") "gsvar"
-    else "gsparam"
+    if (along == "sims") "data"
+    else "posterior"
 
   gs(res, class, group = group(gs))
 }
@@ -119,7 +150,7 @@ var.gsresult <- function(gs, along = "sims", ...) {
 ##     res <- apply(gs, i, stats::var, ...)
 ##   }
 
-##   gs(res, "gsvar", group = group(gs))
+##   gs(res, "data", group = group(gs))
 ## }
 
 
@@ -134,13 +165,13 @@ sd.default <- function(...) {
 sd.gsresult <- function(gs, along = "sim") {
   if (along == "sim") i <- 1 else i <- 2
   res <- apply(gs, i, sd.default)
-  gs(res, "gsvar", group = group(gs))
+  gs(res, "data", group = group(gs))
 }
 
-sd.gsparam <- function(gs, along = "sim") {
+sd.posterior <- function(gs, along = "sim") {
   if (along == "sim") i <- 1 else i <- 2
   res <- apply(gs, i, sd.default)
-  gs(res, "gsvar", group = group(gs))
+  gs(res, "data", group = group(gs))
 }
 
 
@@ -149,9 +180,9 @@ rescale <- function(x) {
   UseMethod("rescale")
 }
 
-rescale.gsvar <- function(gs) {
+rescale.data <- function(gs) {
   data <- arm::rescale(gs)
-  gs(data, "gsvar", group(gs))
+  gs(data, "data", group(gs))
 }
 
 
@@ -164,22 +195,22 @@ mean.gsresult <- function(gs) {
   ##     select(mean)
   ## } else {
   res <- rowMeans(gs)
-  gs(res, "gsvar", group = group(gs))
+  gs(res, "data", group = group(gs))
 }
 
-mean.gsvar <- function(gs) {
+mean.data <- function(gs) {
   mean.default(gs)
 }
 
-mean.gsparam <- function(gs) {
+mean.posterior <- function(gs) {
   if (is.grouped_gs(gs)) {
     res <- apply(gs, 1, mean)
   } else {
     res <- NextMethod(gs)
   }
   ## When we aggregate over sims and get an object which does not
-  ## embed posterior uncertainty, it becomes a "gsvar"
-  gs(res, "gsvar", group = group(gs))
+  ## embed posterior uncertainty, it becomes a "data"
+  gs(res, "data", group = group(gs))
 }
 
 
@@ -200,16 +231,20 @@ tail.gsresult <- function(x, n = 6) {
 }
 
 #' @export
-head.gsparam <- function(x, n = 6) {
-  if (inherits(x, "grouped_gs") || inherits(x, "matrix_gs")) {
-    x[1:n, 1:5]
-  } else {
-    x[1:n]
+head.posterior <- function(x, n = 6) {
+  x <- x[[sample(seq_along(x), 1)]]
+
+  if (dim_length(x) == 2) {
+    n <- min(n, nrow(x))
+    n2 <- min(5, ncol(x))
+    x[1:n, 1:n2, drop = FALSE]
   }
+  else
+    x[seq(1, min(n, length(x)))]
 }
 
 #' @export
-tail.gsparam <- function(x, n = 6) {
+tail.posterior <- function(x, n = 6) {
   l <- nrow(x)
   if (inherits(x, "grouped_gs")) {
     x[(l-n):l, 1:5]
@@ -217,7 +252,3 @@ tail.gsparam <- function(x, n = 6) {
     x[(l-n)]
   }
 }
-
-as.data.frame.gs <- function(x, ...) as.data.frame.numeric(x, ...)
-
-

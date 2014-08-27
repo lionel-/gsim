@@ -2,13 +2,13 @@
 
 gsim_process <- function(data, mclist, groups = NULL) {
   if (first(mclist) %>% is.list)
-    mclist <- mcmc_collapse(mclist, simplify = FALSE)
+    mclist <- mcmc_collapse(mclist)
 
   nobs <- nrow(data)
   nsims <- first(dim(first(mclist)))
 
-  data_groups <- get_gs_group(data, groups, type = "vars")
-  sim_groups  <- get_gs_group(mclist, groups, type = "params")
+  data_groups <- gsim_group(data, groups, type = "vars")
+  sim_groups  <- gsim_group(mclist, groups, type = "params")
 
   ## Reduce grouped variables to a vector with one value per group
   reduce <- function(x, y) {
@@ -19,8 +19,8 @@ gsim_process <- function(data, mclist, groups = NULL) {
   }
   data <- Map(reduce, data, data_groups)
 
-  data   <- Map(gs, data,   class = "gsvar",   group = data_groups, name = names(data))
-  mclist <- Map(gs, mclist, class = "gsparam", group = sim_groups,  name = names(mclist))
+  data   <- Map(gs, data,   class = "data",      group = data_groups, colnames = names(data))
+  mclist <- Map(gs, mclist, class = "posterior", group = sim_groups,  colnames = names(mclist))
 
   list(data = data, mclist = mclist)
 }

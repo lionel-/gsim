@@ -12,7 +12,7 @@ intercept <- function(n = NULL) {
   if (class(try(get_nsims(), silent = TRUE)) == "try-error")
     res
   else
-    gs(res, "gsvar", name = "intercept")
+    gs(res, "data", colnames = "intercept")
 }
 
 

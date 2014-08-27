@@ -1,46 +1,5 @@
 
 
-#' @export
-nobs.gs <- function(gs) {
-  n <- attr(gs, "nobs")
-  if (is.null(n))
-    stop("invalid nobs attribute")
-  else n
-}
-
-#' @export
-nsims <- function(gs) {
-  n <- attr(gs, "nsims")
-  if (is.null(n))
-    stop("invalid nobs attribute")
-  else n
-}
-
-
-## Look up objects dynamically through the calling stack
-dyn_get <- function(obj) {
-  n <- 1
-  env <- parent.frame(n)
-
-  while(!identical(env, globalenv())) {
-    if (exists(obj, envir = env))
-      return(get(obj, envir = env))
-
-    n <- n + 1
-    env <- parent.frame(n)
-  }
-
-  stop(paste("Cannot find", obj))
-}
-
-get_metadata <- function(obj) {
-  function() dyn_get(obj)
-}
-
-get_n <- get_metadata("..n..")
-get_nsims <- get_metadata("..nsims..")
-
-
 indices <- function(gs) attr(gs, "indices", exact = TRUE)
 labels <- function(gs) attr(gs, "labels", exact = TRUE)
 
@@ -71,7 +30,7 @@ get_name <- function(gs) {
   if (is.null(name)) "gs"
   else name
 }
-name <- get_name
+## name <- get_name
 
 
 #' @export
@@ -127,7 +86,7 @@ group_by <- function(gs, group) {
   attr(gs, "indices") <- indices
 
   attr(gs, "group") <- group
-  gs <- set_gs_class(gs, gsim_class(gs), grouped = TRUE)
+  gs <- set_gsim_class(gs, gsim_class(gs), grouped = TRUE)
 
   ## todo: next line also a hack
   attr(gs, "labels") <- unique(group_var)
@@ -135,7 +94,7 @@ group_by <- function(gs, group) {
   gs
 }
 
-get_gs_group <- function(data, groups, type) {
+gsim_group <- function(data, groups, type) {
   names_by_group <- lapply(groups, "[[", type)
 
   get_group <- function(x) {
@@ -152,7 +111,46 @@ get_gs_group <- function(data, groups, type) {
 }
 
 
-set_class <- function(x, ...) {
-  `class<-`(x, c(...))
+gsim_dim <- function(gs) {
+  if (is.data(gs))
+    dim(gs)
+  else if (is.posterior(gs))
+    dim(first(gs))
 }
 
+
+set_class <- function(x, ..., append = FALSE) {
+  class <-
+    if (append) 
+      union(class(x), c(...))
+    else
+      c(...)
+
+  class(x) <- class
+  x
+}
+
+
+make_default_names <- function(n) {
+  suffix <-
+    if (n > 1)
+      c("", seq_len(n)[-1])
+    else
+      ""
+  paste0("gs", suffix)
+}
+
+
+set_dim <- function(x, dims) {
+  dim(x) <- dims
+  x
+}
+
+set_dimnames <- function(x, names) {
+  ## dots <- dots(...) %>%
+  ##   vapply(identity, character(1))
+  ## names <- vector("list", length(dots)) %>%
+  ##   set_names(dots)
+  dimnames(x) <- names
+  x
+}

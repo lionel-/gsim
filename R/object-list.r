@@ -1,6 +1,6 @@
 
 list_gs <- function(...) {
-  args <- extract_dots(..., simplify = TRUE)
+  args <- dots(..., simplify = TRUE)
 
   ## ## If args simplified, can't work with numeric vectors to check class
   ## ## If not, can't work with lists of gs...
@@ -17,7 +17,7 @@ list_gs <- function(...) {
     c(a, b)
   }, args[-1], args[[1]])
 
-  gs(args, "gsvar")
+  gs(args, "data")
 }
 
 
@@ -26,7 +26,7 @@ as.data.frame.list_gs <- function(gs, ...) {
   ## What did I mean by grouped list back then??
 
 
-  if (is.gsparam(gs)) {
+  if (is.posterior(gs)) {
     ## Remove attributes to prevent a tidyr warning
     res <- lapply(gs, function(col) {
       attr(col, "name") <- NULL
@@ -45,7 +45,7 @@ as.data.frame.list_gs <- function(gs, ...) {
       res[group] <- factor(res[[group]], sort(unique(as.character(res[[group]]))))
     }
 
-  } else if (is.gsvar(gs)) {
+  } else if (is.data(gs)) {
     if (is.grouped_gs(gs)) {
       res <- as.data.frame.list(gs) %>%
         gather_(group(gs), name(gs), seq_len(length(gs)))

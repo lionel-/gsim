@@ -1,68 +1,45 @@
 
 
-gs <- function(object, class, group = NULL, name = "gs") {
-  assert_that(class %in% c("gsvar", "gsparam", "gsresult"))
-  ## if (class == "gsparam") browser(expr = getOption("debug_on"))
+gs <- function(object, class = "data", group = NULL, colnames = NULL) {
+  assert_that(class %in% c("numeric", "data", "posterior"))
 
-  # gsresults are the only legit matrices in gsim?
+  if (class == "posterior") {
+    if (is.null(dim(object)))
+      object <- array(object, c(length(object), 1))
 
-  # Purpose of this code? Transform matrices of coefficients into
-  # handy list_gs. Maybe transform them into matrix_gs instead and
-  # require explicit coercion into lists?
-  # Automatic simplification of one-col matrices
+     res <- object %>%
+      apply(1, list) %>%
+      lapply(function(x) {
+        colnames <- last(dimnames(x), default = NULL) %||% colnames
+        x[[1]] %>%
+          as.gsarray %>%
+          ## gs("data", colnames = colnames) %>%
+          set_colnames(colnames) %>%
+          rbind_cols
+      })
 
-  if (length(dim(object)) > 3)
-      stop()
-
-  ## else if (length(dim(object)) > 1) {
-  ## todo: find another place and a more general way to simplify
-  ## if (is.gsvar(object) && ncol(object) == 1) {
-  ##   ## Simplify single column matrices into vectors
-  ##   attr(object, "dim") <- NULL
-  ## }
-
-  else if (length(dim(object)) > 1) {
-
-    if (class %in% c("gsvar", "gsparam")) {
-      ## browser(expr = getOption("debug_on"))
-      ## Simplify matrices to lists
-      dim_names <- dimnames(object)
-      names <- last(dim_names) %||% list(NULL)
-
-      ## objectbak <- object
-      ## object <- objectbak
-
-      ## if (class == "gsparam" && length(dim(object)) %in% c(2, 3))
-      ##   object %<>% rbind_cols
-      
-
-      object %<>% apply(MARGIN = length(dim_names), list)
-
-      ## fixme: first(obj) because apply list yields a list of list...
-      object <-
-        Map(function(obj, ...) gs(first(obj), ...),
-            object, class = class, name = names) %>%
-          simplify_list
-    }
-
-  } else if (is.list(object) || is.list_gs(object)) {
-    if (length(object) == 1) {
-      object <- first(object)
-
-    } else {
-      names <- vapply(object, get_name, character(1)) %>%
-        make_names_unique
-      object <- Map(function(gs, name) set_name(gs, name), object, names)
-    }
+    res %>%
+      set_gsim_attributes("posterior", group)
   }
 
+  else {
+    object %<>% as.gsarray
+    colnames(object) <- colnames
+    object %>%
+      set_gsim_attributes("data", group)
+  }
+}
+
+
+set_gsim_attributes <- function(object, class, group = NULL) {
   object <- structure(
-             object,
-             group = group,
-             name = name
+    object,
+    group = group
   )
 
-  object <- set_gs_class(object, class, grouped = !is.null(group))
+  object %<>%
+    set_gsim_class(class, grouped = !is.null(group))
+
   object
 }
 
@@ -74,71 +51,123 @@ is.gs         <- function(x) inherits(x, "gs")
 is.grouped_gs <- function(x) inherits(x, "grouped_gs")
 
 #' @export
-is.gsvar      <- function(x) inherits(x, "gsvar")
+is.data      <- function(x) inherits(x, "data")
 
 #' @export
-is.gsparam    <- function(x) inherits(x, "gsparam")
-
-#' @export
-is.gsresult   <- function(x) inherits(x, "gsresult")
-
-#' @export
-is_any.gsresult <- function(...) {
-  any(vapply(list(...), is.gsresult, logical(1)))
-}
+is.posterior    <- function(x) inherits(x, "posterior")
 
 
-## Todo?: replace set_gs_class with gsim_class<-
 
 #' @export
 gsim_class <- function(x) {
-  if (is.gsparam(x)) return("gsparam")
-  else if (is.gsvar(x)) return("gsvar")
-  else if (is.gsresult(x)) return("gsresult")
+  if (is.seq_gs(x)) return("seq_gs")
+  else if (is.posterior(x)) return("posterior")
+  else if (is.data(x)) return("data")
   else if (is.numeric(x)) return("numeric")
   else NULL
 }
 
-set_gs_class <- function(gs, class, grouped = NULL) {
-  class(gs) <- c("gs", class)
+set_gsim_class <- function(gs, class, grouped = NULL) {
+  new_class <- c("gs", class)
+
   if (grouped) {
-    class(gs) <- c(class(gs), "grouped_gs")
+    new_class <- c(new_class, "grouped_gs")
   }
-  if (is.list(gs)) {
-    class(gs) <- c(class(gs), "list_gs")
-  }
-  gs
-}
-
-
-as.data.frame.gsvar <- function(gs, ...) {
-  gs %>%
-    as.numeric %>%
-    as.data.frame %>%
-    set_names(name(gs)) %>%
-    cbind(obs = seq_len(length(gs)), .) %>%
-    gs_regroup(group(gs))
-}
-
-as.data.frame.gsresult <- function(gs, ...) {
-  nobs <- nrow(gs)
-  nsims <- ncol(gs)
 
   gs %>%
-    as.data.frame.matrix %>%
-    set_colnames(seq_len(nsims)) %>%
-    cbind(obs = seq_len(nobs)) %>%
-    gather_("sim", name(gs), seq_len(nsims)) %>%
-    gs_regroup(group(gs))
+    set_class(new_class)
 }
 
+`gsim_class<-` <- function(gs, class) set_gsim_class(gs, class)
+
+## as.data.frame.gs <- function(gs) {
+##   ## fixme: For some reason, method dispatch does not work...
+##   if (is.data(gs))
+##     as.data.frame.data(gs)
+##   else
+##     as.data.frame.posterior(gs)
+## }
+
+as.data.frame.data <- function(gs, ...) {
+  if (dim_length(gs) > 2)
+    gs %>% adply(seq_len(dim(gs)))
+    
+  else {
+    names <- colnames(gs) %||% make_default_names(ncol(gs))
+
+    gs %>%
+      as.data.frame.matrix %>%
+      set_names(names) %>%
+      cbind(obs = seq_len(length(gs)), .) %>%
+      gs_regroup(group(gs))
+  }
+}
+
+as.data.frame.posterior <- function(gs, ...) {
+  dim <- gsim_dim(gs)
+
+  if (length(dim) > 2)
+    "Can only summarise vectors and matrices at the moment"
+
+  else if (dim[2] == 1) {
+    res <- vapply(gs, as.matrix, numeric(dim[1])) %>%
+      as.data.frame %>%
+      set_colnames(seq_along(gs)) %>%
+      cbind(obs = seq_len(dim[1]), .) %>%
+      gs_regroup(group(gs)) %>%
+      gather_("sim", "gs", paste0(1:500))
+
+    if (!is.null(group(gs)))
+      regroup(res, list(group(gs)))
+    else
+      res
+  }
+
+  else
+    Map(function(sim, x) data.frame(sim = sim, x),
+        sim = list(seq_len(first(gsim_dim(gs)))), x = gs) %>%
+      rbind_all %>%
+      arrange(sim) %>%
+      gs_regroup(group(gs))
+}
 
 gs_regroup <- function(res, group) {
   if (!is.null(group)) {
     ## group is as.vector'd to convert it to character or numeric
-    res <- cbind(as.vector(dyn_get(group)), res)
+    res <- cbind(as.vector(get_in_input(group)), res)
     names(res)[1] <- group
     res %<>% regroup(list(group))
   }
   res
+}
+
+
+subset_data <- function(gs, name) {
+  if (is.col_vector(gs)) {
+    if (is.null(attr(gs, "blocks_names")))
+      stop("this object has no blocks")
+
+    class <- gsim_class(gs)
+    index <- block_index(gs, name)
+
+    gs <- gs[index, , drop = FALSE]
+  }
+  else stop("not implemented for matrices yet")
+  
+  gs(gs, class, colnames = name)
+}
+
+
+subset_posterior <- function(gs, name) {
+  do_by_sims(gs, fun = subset_data, args = list(name))
+}
+
+
+block_index <- function(gs, name) {
+  which <- match(name, attr(gs, "blocks_name")) %||% stop("block not found")
+  indices <- attr(gs, "blocks_indices")
+
+  start <- indices[which] + 1
+  stop <- indices[which + 1]
+  seq(start, stop)
 }

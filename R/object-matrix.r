@@ -1,81 +1,113 @@
 
 
-## todo: named arguments
-cbind.gsvar <- function(...) {
-  dots <- extract_dots(...)
+## ## todo: named arguments
+## cbind.data <- function(...) {
+##   dots <- extract_dots(...)
 
-  ## Handling sequences
-  seq_p <- vapply(dots, is.seq_gs, logical(1))
-  if (any(seq_p))
-    return(do.call("seq_operate", c(dots, list(fun = cbind.gsvar))))
+##   ## Handling sequences
+##   seq_p <- vapply(dots, is.seq_gs, logical(1))
+##   if (any(seq_p))
+##     return(do.call("seq_operate", c(dots, list(fun = cbind.data))))
 
-  names <- vapply(dots, get_name, character(1)) %>%
-    make_names_unique
+##   names <- vapply(dots, get_name, character(1)) %>%
+##     make_names_unique
 
-  dots %>%
-    set_names(names) %>%
-    convert_numeric %>%
-    list_gs %>%
-    ensure_same_length
-}
+##   dots %>%
+##     set_names(names) %>%
+##     convert_numeric %>%
+##     list_gs %>%
+##     ensure_same_length
+## }
 
 
 cbind.gs_seq <- function(...) {
   stop()
 }
 
-cbind.gsparam <- function(...) {
-  args <- extract_dots(...)
-  if (!is.list_gs(args))
-    args <- concatenate(args)
+## cbind.posterior <- function(...) {
+##   args <- extract_dots(...)
+##   if (!is.list_gs(args))
+##     args <- concatenate(args)
 
-  res <- Reduce(cbind, args, NULL)
-  class(res) <- c("gsparam", "matrix_gs")
-  res
-}
+##   res <- Reduce(cbind, args, NULL)
+##   class(res) <- c("posterior", "matrix_gs")
+##   res
+## }
 
 
 
-rbind.gsvar <- function(...) {
-  dots <- extract_dots(...)
+rbind.data <- function(...) {
+  dots <- dots(...)
 
   seq_p <- vapply(dots, is.seq_gs, logical(1))
   if (any(seq_p))
-    return(do.call("seq_operate", c(dots, list(fun = rbind.gsvar))))
+    return(do.call("seq_operate", c(dots, list(fun = rbind.data))))
 
   do.call("c", dots) %>%
     convert_numeric
 }
 
 
-rbind.gsparam <- function(...) {
-  dots <- extract_dots(...)
+rbind.posterior <- function(...) {
+  dots <- dots(...)
 
   seq_p <- vapply(dots, is.seq_gs, logical(1))
   if (any(seq_p))
-    return(do.call(seq_operate, c(dots, list(fun = rbind.gsparam))))
+    return(do.call(seq_operate, c(dots, list(fun = rbind.posterior))))
 
   do.call(cbind, lapply(dots, unclass))
 }
 
 
+rbind_cols <- function(x, ...) UseMethod("rbind_cols")
 
-rbind_cols <- function(list_gs) {
-  res <- do.call("rbind", list_gs)
+rbind_cols.data <- function(object) {
+  if (!dim_length(object) == 2)
+    stop("Can only rbind the cols of a matrix")
 
-  attr(res, "blocks_names") <- last(dimnames(res))
-  ## Todo: non constant gaps
-  ##       objects of dim > 1
-  gap <- dim(first(list_gs)) %>% extract(length(.)) %||% 1
-  attr(res, "blocks_indices") <- cumsum(rep(gap, length(list_gs)))
+  if (dim(object)[2] == 1)
+    return(object)
+
+  ncols <- ncol(object)
+  nrows <- nrow(object)
+  res <- object %>%
+    array(c(nrows * ncols, 1)) %>%
+    gs("data")
+
+  attr(res, "blocks_names") <- colnames(object) %||% rep("", ncols)
+  attr(res, "blocks_indices") <- c(0, cumsum(rep(nrows, ncols)))
   attr(res, "dimnames") <- NULL
   res
 }
 
+rbind_cols.matrix <- rbind_cols.data
+
+cbind_blocks <- function(x) UseMethod("cbind_blocks")
+
+cbind_blocks.data <- function(object) {
+  if (!dim_length(object) == 2)
+    stop("Can only cbind the blocks of a matrix or a column vector")
+
+  if (dim(object)[2] > 1)
+    browser(expr = getOption("debug_on"))
+
+  dims <- dim(object)
+  blocks <- attr(object, "blocks_names")
+  indices <- attr(object, "blocks_indices")
+  gap <- indices[2]
+
+  res <- array(object, c(gap, length(blocks) * last(dims)))
+  colnames(res) <- blocks
+  res
+}
+
+cbind_blocks.posterior <-
+  function(object) do_by_sims(object, cbind_blocks(.$object))
+
 
 
 as.data.frame.matrix_gs <- function(gs, ...) {
-  if (is.gsvar(gs)) {
+  if (is.data(gs)) {
     as.data.frame.matrix(gs, ...)
   }
 }

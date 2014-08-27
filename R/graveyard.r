@@ -1,3 +1,404 @@
+
+## ## FOR POSTERITY
+
+## operate_on_gs_dplyr <- function(a, b, fun) {
+##   class_a <- gsim_class(a)
+##   class_b <- gsim_class(b)
+
+##   class(a) <- "data.frame"
+##   class(b) <- "data.frame"
+
+##   if (all(c(class_a, class_b) == "posterior")) {
+##     c(a, b[-1]) %>%
+##       set_names("sim", "object.x", "object.y") %>%
+##       do_by_sims_dplyr(gs(fun(.$object.x, .$object.y)))
+##   }
+
+##   else if (class_a == "posterior")
+##     do_by_sims_dplyr(a, gs(fun(.$object, b)))
+
+##   else if (class_b == "posterior")
+##     do_by_sims_dplyr(b, gs(fun(a, .$object)))
+  
+##   else stop(paste("Class of a:", class_a, "\nClass of b:", class_b))
+## }
+
+
+## posterior_to_numeric <- function(x) {
+##   ## might be a bug for simplified vectors
+##   dim1 <- dim(first(.subset2(x, 2)))
+##   dim2 <- nrow(x) %||% length(.subset2(x, 1))
+
+##   x$object %>%
+##     Reduce(f = c, .) %>%
+##     set_dim(c(dim1, dim2))
+## }
+
+
+## do_by_sims_vectorized_unary <- function(x, fun, ...) {
+##   posterior_to_numeric(x) %>%
+##     fun(...) %>%
+##     gs("posterior")
+## }
+
+
+
+## p <- Progress(nrow(gs), min_time = 2)
+
+## %*% not equivalent to +, -, * and /?
+## ^ also different? Only works with scalar
+
+## ^ : scalars
+## + - * / : scalars, conformable vectors and arrays
+##    -> simplify scalars and vectors
+## %*% : only conformable arrays
+##    -> no simplification
+
+
+## list_to_posterior <- function(x) {
+##   if ((!names(x)[1] == "object") %||% TRUE)
+##     x <- list(object = x)
+##   c(list(sim = seq_len(length(x[[1]]))), x) %>%
+##     quickdf %>%
+##     set_gsim_attributes("posterior")
+## }
+
+## do_by_sims_dplyr <- function(gs, ...) {
+##   if (!is.data.frame(gs))
+##     gs <- quickdf(gs)
+##   gs <- rowwise(gs)
+
+##   dots <- dots_q(...)
+##   if (length(dots) > 1)
+##     stop("Only one operation allowed at the moment")
+##   else
+##     dots <- first(dots)
+##   quoted_do <- bquote(do(.(gs), object = .(dots)))
+
+##   done <- eval(quoted_do, envir = parent.frame(), enclos = parent.frame())
+##   list_to_posterior(done)
+## }
+
+## do_by_sims_vectorized <- function(a, b, fun) {
+##   ## todo: check for different input shapes. Maybe automatically
+##   ## resort to dplyr or loop for non conformable inputs
+
+##   ## if one of them is posterior, dim = c(100, 3, 4, 5)
+##   ## ok if other - is scalar
+##   ##             - is dim (3, 4, 5)
+##   ##             - is dim (3, 4)?
+
+##   ## Actually, if other shares some of the dims, its length will be a
+##   ## multiple and all is ok. The user needs to check that it makes
+##   ## sense.
+
+##   ## hmm... better if sims are last dim?? yes................
+##   ## is that the case right now? looks like it. Todo: check that
+##   ## browser(expr = getOption("debug_on"))
+
+##   if (is.posterior(a))
+##     a <- posterior_to_numeric(a)
+##   if (is.posterior(b))
+##     b <- posterior_to_numeric(b)
+
+##   res <- fun(a, b)
+##   dim_len <- dim_length(res)
+
+##   res %>% 
+##     aperm(c(dim_len, seq_len(dim_len - 1))) %>%
+##     gs("posterior")
+## }
+
+
+
+
+## DATA.FRAME POSTERIOR ##
+
+  ## if (class == "posterior") {
+  ##   nsims <- nrow(object) %||% length(object)
+  ##   res <- list(sim = as.list(seq_len(nsims)))
+
+  ##   ## fixme: breaks as.gsarray
+  ##   if (is.null(dim(object)))
+  ##     object <- array(object, c(length(object), 1))
+
+  ##   res[["object"]] <- object %>%
+  ##     apply(1, list) %>%
+  ##     lapply(function(x) {
+  ##       colnames <- last(dimnames(x), default = NULL) %||% colnames
+  ##       x[[1]] %>%
+  ##         as.gsarray %>%
+  ##         ## gs("data", colnames = colnames) %>%
+  ##         set_colnames(colnames) %>%
+  ##         rbind_cols
+  ##     })
+
+  ##   attr(res, "row.names") <- .set_row_names(nsims)
+  ##   res %>%
+  ##     set_gsim_attributes("posterior", group)
+  ## }
+
+
+
+## variadic_operator <- function(fun, ...) {
+##   function(...) {
+##     dots <- dots(...)
+
+##     if (length(dots) == 0)
+##       NULL
+##     else if (length(dots) == 1)
+##       first(dots)
+##     else
+##       Reduce(function(a, b) operate(a, b, fun), dots[-1], first(dots))
+##   }
+## }
+
+
+## `%*%.gs` <- function(x, y) {
+
+##   ## HANDLING SEQUENCES
+##   if (is.seq_gs(x) || is.seq_gs(y))
+##     return(seq_operate(x, y, fun = `%*%.gs`))
+  
+  
+##   ## Transform list of coefficients into proper matrices
+##   if (is.list_gs(x)) x <- as.matrix(x)
+##   if (is.list_gs(y)) y <- as.matrix(y)
+  
+
+##   ## todo: handle all 2^3 combinations
+##   if (is.posterior(x) || is.posterior(y)) {
+##     nobs <- Find(is.data, list(x, y)) %>% nrow
+##     nsims <- get_nsims()
+##     res <- array(NA, c(nobs, nsims))
+
+##     if (is.posterior(x)) {
+##       for (i in seq(nsims)) {
+##         res[, i] <- base::`%*%`(x[i, ], y)
+##       }
+##     }
+##     else if (is.posterior(y)) {
+##       for (i in seq(nsims)) {
+##         res[, i] <- base::`%*%`(x, y[i, ])
+##       }
+##     }
+
+##     res <- gs(res, "gsresult")
+
+##   }
+
+##   else {
+##     res <- base::`%*%`(cbind(x), cbind(y)) %>%
+##       t %>% gs("data")
+##   }
+
+##   res
+## }
+
+
+
+## GROUPED ##
+  ## is_a_grouped <- inherits(a, "grouped_gs")
+  ## is_b_grouped <- inherits(b, "grouped_gs")
+
+  ## a_group <- group(a)
+  ## b_group <- group(b)
+
+  ## if (length(a_group) > 1 || length(b_group) > 1) {
+  ##   stop("Todo: One of the objects belongs to more than one group")
+  ## } else if (!any(c(is.null(a_group), is.null(b_group))) &&
+  ##            a_group != b_group) {
+  ##   stop("Objects belong to different groups")
+  ## }
+  ## ## Objects loose their grouped character when combined with
+  ## ## ungrouped objects
+  ## else if (is_a_grouped != is_b_grouped)
+  ##   operate_on_gs(a, b, fun, post_fun)
+
+  ## else if (is_a_grouped && is_b_grouped)
+  ##   operate_on_grouped_gs(a, b, fun)
+  ## else
+  ##   operate_on_gs(a, b, fun, post_fun)
+
+
+## expand_grouped_gs <- function(gs) {
+##   assert_that(!is.null(group(gs)))
+
+##   if (is.data(gs))
+##     gs[get(group(gs))]
+##   else
+##     gs[get(group(gs)), ]
+## }
+
+
+## operate_on_grouped_gs <- function(a, b, fun) {
+##   classes <- c(gsim_class(a), gsim_class(b))
+
+##   if (classes[1] == classes[2]) {
+##     result <- operate_on_identically_grouped(a, b, fun)
+##   } else if (all(classes %in% c("data", "posterior"))) {
+##     result <- operate_on_grouped_param(a, b, fun)
+##   } else if (all(classes %in% c("data", "gsresult"))) {
+##     result <- operate_on_grouped_var_result(a, b, fun)
+##   } else if (all(classes %in% c("posterior", "gsresult"))) {
+##     result <- operate_on_grouped_param(a, b, fun)
+##   } else stop("Unknown objects")
+
+##   result
+## }
+
+## operate_on_identically_grouped <- function(a, b, fun) {
+##   class <- gsim_class(a)
+##   result <- fun(a, b)
+
+##   gs(result, class, group = group(a))
+## }
+
+## operate_on_grouped_param <- function(a, b, fun) {
+
+##   if (!is.grouped_gs(a) || !is.grouped_gs(b)) {
+##     if (gsim_class(a) == "data") {
+##       var   <- a
+##       param <- expand_grouped_gs(b)
+##     } else {
+##       var   <- b
+##       param <- expand_grouped_gs(a)
+##     }
+##     result <- fun(param, var)
+##   } else if (is.grouped_gs(a) && is.grouped_gs(b)) {
+##     if (is_any.gsresult(a, b)) {
+##       ## Problem: Recognize between varying parameters, with dimension
+##       ## (ngroup, niter), and constant parameters, with dimension niter.
+
+##       if (is.gsresult(a) && is.null(dim(b))) {
+##         ## assert_that(length(b) == b$properties$niter)
+##         param  <- b
+##         result <- a
+##         result <- sweep(result, 2, param, fun)
+##       } else if (is.gsresult(b) && is.null(dim(a))) {
+##         ## assert_that(length(a) == a$properties$niter)
+##         param  <- a
+##         result <- b
+##         result <- sweep(result, 2, param, fun)
+##       } else if (is.gsresult(b) && length(dim(a)) == 2) {
+##         ## assert_that(dim(a) == c(ngroups, niter))
+##         param  <- a
+##         result <- b
+##         result <- fun(param, result)
+##       }
+
+##     } else if (gsim_class(a) == "data") {
+##       var   <- a
+##       param <- b
+##       result <- outer(var, param, fun)
+##     } else {
+##       var   <- b
+##       param <- a
+##       result <- outer(var, param, fun)
+##     }
+##   } else {
+##     warning("Verify this")
+##     result <- fun(a, b)
+##   }
+
+##   gs(result, "gsresult", group = group(a))
+## }
+
+## operate_on_grouped_var_result <- function(a, b, fun) {
+##   result <- fun(a, b)
+##   gs(result, "gsresult", group = group(a))
+## }
+
+
+## OLD
+
+  ## params <- slotNames(sims)
+  ## mclist <- lapply(params, function(param) slot(sims, param)) %>%
+  ##   set_names(params) %>%
+  ##   Filter(f = function(x) !(is.null(first(x))))
+
+  ## fill_dims <- function(x) {
+  ##   dims <- dim(x)
+  ##   if (is.null(dims)) {
+  ##     dims <- c(1, length(x), 1)
+  ##   } else {
+  ##     n <- length(dims)
+  ##     if (n < 3)
+  ##       dims <- c(dims, rep(1, length.out = 3 - n))
+  ##   }
+  ##   dims
+  ## }
+
+  ## make_mcarray <- function(mcarray, names) {
+  ##   names(dim(mcarray)) <- c("", "iteration", "chain")
+  ##   dimnames(mcarray) <- list(names, NULL, NULL)
+  ##   class(mcarray) <- "mcarray" 
+  ##   mcarray
+  ## }
+
+  ## matrices_idx <- vapply(mclist, is.matrix, logical(1))
+  ## mclist[matrices_idx] %<>% lapply(t)
+
+  ## dims <- lapply(mclist, fill_dims)
+  ## dim_names <- lapply(mclist, function(l) dimnames(l)[[1]])
+
+  ## mclist %<>% Map(f = array, ., dims) %>%
+  ##   Map(f = make_mcarray, ., dim_names)
+
+  ## class(mclist) <- c("list", "mclist")
+  ## mclist
+
+
+
+  ## if (class_a == class_b) {
+  ##   if (is.grouped_gs(a) && is.posterior(a)) {
+  ##     a <- expand_grouped_gs(a)
+  ##   } else if (is.grouped_gs(b) && is.posterior(b)) {
+  ##     b <- expand_grouped_gs(b)
+  ##   }
+  ##   result <- fun(a, b) %>%
+  ##     gs(class_a)
+  ##   return(result)
+  ## }
+
+
+
+  ## ## Make gsim operations compatible with numeric objects
+  ## ## Maybe not necessary since attributes rework
+  ## if (is.numeric(a)) {
+  ##   a <- gs(a, "data")
+  ## } else if (is.numeric(b)) {
+  ##   b <- gs(b, "data")
+  ## }
+
+
+
+  ## ## todo: should not be necessary, even harmful
+  ## flatten <- function(list) 
+  ##   if (is.list(list) && length(list) == 1)
+  ##     list <- list[[1]]
+  ##   list
+  ## }
+  ## a <- flatten(a)
+  ## b <- flatten(b)
+
+  ## ## Maybe work this out through should_expand to prevent expanding
+  ## ## when the grouped object is operated with a scalar
+  ## if (is_any.scalar(a, b)) {
+  ##   class <- gsim_class(Find(Negate(is.scalar), list(a, b)))
+  ##   result <- fun(a, b) %>%
+  ##     gs(class)
+  ##   return(result)
+  ## }
+
+
+  ## should_expand <- function(x) is.grouped_gs(x) && (is.data(x) || is.gsresult(x))
+  ## if (should_expand(a))
+  ##   a <- expand_grouped_gs(a)
+  ##  else if (should_expand(b))
+  ##    b <- expand_grouped_gs(b)
+
+
     ## is_result <- !is.null(dim(first(subset$value)))
 
     ## ## Interpolate all simulations of gsresults

@@ -2,233 +2,66 @@
 
 ## Function factory for binary element-wise operators 
 operator <- function(fun) {
-  function(a, b) {
-
-    ## Handling sequences
-    if (is.seq_gs(a) || is.seq_gs(b))
-      return(seq_operate(a, b, fun = function(a, b) operate(a, b, fun)))
-
-    if (is.list_gs(a) || is.list_gs(b))
-      stop("todo")
-
-    operate(a, b, fun)
+  function(...) {
+    if (any(vapply(list(...), is.seq_gs, logical(1))))
+      seq_operate(..., fun = function(...) operate(..., fun = fun))
+    else
+    operate(..., fun = fun)
   }
 }
 
-operate <- function(a, b, fun) {
+
+sanitize <- function(object, dim_other) {
+  if (is.posterior(object))
+    return(do_by_sims(object, fun = sanitize))
+
+
+  if (length(dim(object)) == 2 && all(dim(object) == c(1, 1)))
+    object <- as.vector(object)
+  
+  if (inherits(object, "numeric"))
+    class(object) <- "data"
+
   ## Need to remove gs class to provoke method dispatch later on.
-  ## NextMethod does not work because it evaluates directly with
-  ## fun, whereas we need a functional of fun. We would need S4
-  ## classes to get the name of the next method and feed it to the
-  ## functional.
-  class(a) <- setdiff(class(a), "gs")
-  class(b) <- setdiff(class(b), "gs")
+  ## NextMethod does not work because it evaluates directly with fun,
+  ## while we need it to evaluate with the returned functional of
+  ## fun. We would need S4 classes to get the name of the next method
+  ## and feed it to the functional.
+  class(object) <- setdiff(class(object), "gs")
 
-  ## ## Make gsim operations compatible with numeric objects
-  ## ## Maybe not necessary since attributes rework
-  ## if (is.numeric(a)) {
-  ##   a <- gs(a, "gsvar")
-  ## } else if (is.numeric(b)) {
-  ##   b <- gs(b, "gsvar")
-  ## }
-
-  classes  <- c(gsim_class(a), gsim_class(b))
-
-  is_a_grouped <- inherits(a, "grouped_gs")
-  is_b_grouped <- inherits(b, "grouped_gs")
-
-  a_group <- group(a)
-  b_group <- group(b)
-
-  if (length(a_group) > 1 || length(b_group) > 1) {
-    stop("Todo: One of the objects belongs to more than one group")
-  } else if (!any(c(is.null(a_group), is.null(b_group))) &&
-             a_group != b_group) {
-    stop("Objects belong to different groups")
-  }
-
-  if (is_a_grouped != is_b_grouped) {
-    ## Objects loose their grouped character when combined with
-    ## ungrouped objects
-    result <- operate_on_gs(a, b, fun)
-  } else if (is_a_grouped && is_b_grouped) {
-    result <- operate_on_grouped_gs(a, b, fun)
-  } else {
-    result <- operate_on_gs(a, b, fun)
-  }
-
-  result
-}
-
-operate_on_gs <- function(a, b, fun) {
-  class_a <- gsim_class(a)
-  class_b <- gsim_class(b)
-
-  flatten <- function(list) {
-    if (is.list(list) && length(list) == 1)
-      list <- list[[1]]
-    list
-  }
-  a <- flatten(a)
-  b <- flatten(b)
-
-  ## Maybe work this out through should_expand to prevent expanding
-  ## when the grouped object is operated with a scalar
-  if (is_any.scalar(a, b)) {
-    class <- gsim_class(Find(Negate(is.scalar), list(a, b)))
-    result <- fun(a, b)
-    result <- gs(result, class)
-    return(result)
-  }
-
-  should_expand <- function(x) is.grouped_gs(x) && (is.gsvar(x) || is.gsresult(x))
-  if (should_expand(a)) {
-    a <- expand_grouped_gs(a)
-  } else if (should_expand(b)) {
-    b <- expand_grouped_gs(b)
-  }
-
-
-  if (class_a == class_b) {
-    if (is.grouped_gs(a) && is.gsparam(a)) {
-      a <- expand_grouped_gs(a)
-    } else if (is.grouped_gs(b) && is.gsparam(b)) {
-      b <- expand_grouped_gs(b)
-    }
-    result <- fun(a, b)
-    result <- gs(result, class_a)
-    return(result)
-  }
-
-  ## Todo: clean up this mess
-  if (class_a == "gsvar" && class_b == "gsparam") {
-    ## Using outer is more efficient but does not work with grouped
-    ## gsparam
-    if (is.grouped_gs(b)) {
-      b <- expand_grouped_gs(b)
-      result <- fun(a, b)
-    } else {
-      result <- outer(a, b, fun)
-    }
-  } else if (class_a == "gsparam" && class_b == "gsvar") {
-    if (is.grouped_gs(a)) {
-      a <- expand_grouped_gs(a)
-      result <- fun(b, a)
-    } else {
-      result <- outer(b, a, fun)
-    }
-  } else if (class_a == "gsparam" && class_b == "gsresult") {
-    if (inherits(a, "grouped_gs")) {
-      a <- expand_grouped_gs(a)
-    }
-    result <- fun(a, b)
-  } else if (class_a == "gsresult" && class_b == "gsparam") {
-    if (is.grouped_gs(b)) {
-      b <- expand_grouped_gs(b)
-    }
-    result <- fun(a, b)
-  } else if (class_a == "gsvar" && class_b == "gsresult") {
-    result <- apply(b, 2, fun, a)
-  } else if (class_a == "gsresult" && class_b == "gsvar") {
-    result <- apply(a, 2, fun, b)
-  } else if (class_a == "numeric") {
-    result <- fun(a + b)
-  } else if (class_b == "numeric") {
-    result <- fun(a + b)
-  } else stop(paste("Class of a:", class_a, "\nClass of b:", class_b))
-
-## browser()
-  gs(result, "gsresult")
-}
-
-expand_grouped_gs <- function(gs) {
-  assert_that(!is.null(group(gs)))
-  if (is.gsvar(gs)) {
-    gs <- gs[get(group(gs))]
-  } else {
-    gs <- gs[get(group(gs)), ]
-  }
-
-  gs
+  object
 }
 
 
-operate_on_grouped_gs <- function(a, b, fun) {
-  classes <- c(gsim_class(a), gsim_class(b))
+operate <- function(..., fun) {
+  dots <- dots(...) %>%
+    lapply(sanitize)
 
-  if (classes[1] == classes[2]) {
-    result <- operate_on_identically_grouped(a, b, fun)
-  } else if (all(classes %in% c("gsvar", "gsparam"))) {
-    result <- operate_on_grouped_param(a, b, fun)
-  } else if (all(classes %in% c("gsvar", "gsresult"))) {
-    result <- operate_on_grouped_var_result(a, b, fun)
-  } else if (all(classes %in% c("gsparam", "gsresult"))) {
-    result <- operate_on_grouped_param(a, b, fun)
-  } else stop("Unknown objects")
-
-  result
+  if (all(vapply(dots, function(x) gsim_class(x) == "data", logical(1))))
+    do.call("fun", dots) %>% gs("data")
+  else
+    do.call("do_by_sims", c(dots, list(fun = fun)))
 }
 
-operate_on_identically_grouped <- function(a, b, fun) {
-  class <- gsim_class(a)
-  result <- fun(a, b)
 
-  gs(result, class, group = group(a))
-}
+do_by_sims <- function(..., fun, args = NULL) {
+  dots <- dots(...) %>%
+    lapply(function(x) {
+      if (is.data(x))
+        list(x)
+      else
+        x
+    })
 
-operate_on_grouped_param <- function(a, b, fun) {
+  ## Small perf advantage for lapply for unary mappings
+  res <- 
+    if (length(dots) == 1)
+      do.call("lapply", c(list(FUN = fun), dots, args))
+    else
+      do.call("Map", c(list(f = fun), dots, args))
 
-  if (!is.grouped_gs(a) || !is.grouped_gs(b)) {
-    if (gsim_class(a) == "gsvar") {
-      var   <- a
-      param <- expand_grouped_gs(b)
-    } else {
-      var   <- b
-      param <- expand_grouped_gs(a)
-    }
-    result <- fun(param, var)
-  } else if (is.grouped_gs(a) && is.grouped_gs(b)) {
-    if (is_any.gsresult(a, b)) {
-      ## Problem: Recognize between varying parameters, with dimension
-      ## (ngroup, niter), and constant parameters, with dimension niter.
-
-      if (is.gsresult(a) && is.null(dim(b))) {
-        ## assert_that(length(b) == b$properties$niter)
-        param  <- b
-        result <- a
-        result <- sweep(result, 2, param, fun)
-      } else if (is.gsresult(b) && is.null(dim(a))) {
-        ## assert_that(length(a) == a$properties$niter)
-        param  <- a
-        result <- b
-        result <- sweep(result, 2, param, fun)
-      } else if (is.gsresult(b) && length(dim(a)) == 2) {
-        ## assert_that(dim(a) == c(ngroups, niter))
-        param  <- a
-        result <- b
-        result <- fun(param, result)
-      }
-
-    } else if (gsim_class(a) == "gsvar") {
-      var   <- a
-      param <- b
-      result <- outer(var, param, fun)
-    } else {
-      var   <- b
-      param <- a
-      result <- outer(var, param, fun)
-    }
-  } else {
-    warning("Verify this")
-    result <- fun(a, b)
-  }
-
-  gs(result, "gsresult", group = group(a))
-}
-
-operate_on_grouped_var_result <- function(a, b, fun) {
-  result <- fun(a, b)
-  gs(result, "gsresult", group = group(a))
+  res %>%
+    set_gsim_attributes("posterior")
 }
 
 
@@ -237,53 +70,10 @@ operate_on_grouped_var_result <- function(a, b, fun) {
 "*.gs" <- operator(`*`)
 "/.gs" <- operator(`/`)
 "^.gs" <- operator(`^`)
+"%*%.gs" <- operator(`%*%`)
+"cbind.gs" <- operator(cbind)
 
 
-`%*%` <- function(x, y) {
-  UseMethod("%*%")
-}
+`%*%` <- function(x, y) UseMethod("%*%")
+`%*%.default` <- function(x, y) base::`%*%`(x, y)
 
-`%*%.numeric` <- function(x, y) {
-  stop()
-}
-
-`%*%.gs` <- function(x, y) {
-
-  ## Handling sequences
-  if (is.seq_gs(x) || is.seq_gs(y))
-    return(seq_operate(x, y, fun = `%*%.gs`))
-  
-  
-  ## Transform list of coefficients into proper matrices
-  if (is.list_gs(x)) x <- as.matrix(x)
-  if (is.list_gs(y)) y <- as.matrix(y)
-  
-
-  ## todo: handle all 2^3 combinations
-  if (is.gsparam(x) || is.gsparam(y)) {
-    nobs <- Find(is.gsvar, list(x, y)) %>% nrow
-    nsims <- get_nsims()
-    res <- array(NA, c(nobs, nsims))
-
-    if (is.gsparam(x)) {
-      for (i in seq(nsims)) {
-        res[, i] <- base::`%*%`(x[i, ], y)
-      }
-    }
-    else if (is.gsparam(y)) {
-      for (i in seq(nsims)) {
-        res[, i] <- base::`%*%`(x, y[i, ])
-      }
-    }
-
-    res <- gs(res, "gsresult")
-
-  }
-
-  else {
-    res <- base::`%*%`(cbind(x), cbind(y)) %>%
-      t %>% gs("gsvar")
-  }
-
-  res
-}

@@ -6,10 +6,10 @@
 vseq <- function(gs = NULL, seq = NULL, input_name = NULL, n = 101) {
   if (is.null(gs) && is.null(seq))
     stop("Need either a gs or a sequence")
-  stopifnot(is.null(gs) || is.gsvar(gs))
+  stopifnot(is.null(gs) || is.data(gs))
 
-  if (is.null(name))
-    name <- name(gs)
+  if (is.null(input_name))
+    input_name <- name(gs)
   if (is.null(seq))
     seq <- seq(range(gs)[1], range(gs)[2], length.out = n)
 
@@ -19,7 +19,7 @@ vseq <- function(gs = NULL, seq = NULL, input_name = NULL, n = 101) {
   if (!seq_mean %in% seq)
     seq <- c(seq, seq_mean) %>% sort
 
-  gs_seq <- lapply(seq, gs, class = "gsvar", name = name) %>%
+  gs_seq <- lapply(seq, gs, class = "data", colnames = input_name) %>%
     list %>%
     set_class("data.frame") %>%
     set_attr("row.names", .set_row_names(1))
@@ -50,16 +50,25 @@ seq_gs <- function(res, inputs) {
 is.seq_gs <- function(x) inherits(x, "seq_gs")
 
 
+## Performance is typically not an issue with sequences, so we use
+## dplyr to manipulate and sort sequence objects.
+
 seq_operate <- function(..., fun) {
-  args <- list(...)
+  args <- dots(...)
 
   compound_seqs <- function(a, b) {
-    if (!is.seq_gs(a)) {
+
+    if (!any(is.seq_gs(a), is.seq_gs(b))) {
+      return(fun(a, b))
+    }
+
+    else if (!is.seq_gs(a)) {
       res <- b %>%
         rowwise() %>%
         do(value = fun(a, .$value)) %>%
-        cbind(b %>% select(-value), .) %>%
+        cbind.data.frame(select(b, -value), .) %>%
         seq_gs(inputs = inputs(b))
+
       return(res)
     }
 
@@ -67,10 +76,13 @@ seq_operate <- function(..., fun) {
       res <- a %>%
         rowwise() %>%
         do(value = fun(.$value, b)) %>%
-        cbind(a %>% select(-value), .) %>%
+        cbind.data.frame(a %>% select(-value), .) %>%
         seq_gs(inputs = inputs(a))
       return(res)
     }
+
+
+    ## Multiple sequences
 
     not_in_a_p <- !ids(b) %in% ids(a)
     inputs_a <- input_names(a)
@@ -78,7 +90,6 @@ seq_operate <- function(..., fun) {
     inputs_not_in_a <- input_names(b)[not_in_a_p]
     inputs_not_in_b <- input_names(a)[!ids(a) %in% ids(b)]
     twins <- input_names(b)[ids(b)  %in% ids(a)]
-
 
 
     ## Todo: check that redundant names have the same id
@@ -135,28 +146,13 @@ seq_operate <- function(..., fun) {
 }
 
 
-seq_operate_variadic <- function(args, pos, fun) {
-  ## Only for gsvar atm
-  stop()
-
-  seq_gs_ids <- vapply(args[pos], seq_id, numeric(1))
-
-  if (!all(seq_gs_ids[1] == seq_gs_ids))
-    stop("Can not handle different sequences")
-
-  res <- do.call("Map", c(f = fun, args))
-  seq_gs(res, Find(is.seq_gs, args))
-}
-
-
-
 as.function.seq_gs <- function(obj) {
   seq_fun <-
-    if (is.gsvar(first(obj$value)))
-      as.function.gsvar(obj)
+    if (is.data(first(obj$value)))
+      as.function.data(obj)
 
-    else if (is.gsresult(first(obj$value)))
-      as.function.gsresult(obj)
+    else if (is.posterior(first(obj$value)))
+      as.function.posterior(obj)
 
     else stop()
   
@@ -164,7 +160,7 @@ as.function.seq_gs <- function(obj) {
   args <- do.call("pairlist", vector("list", length(input_names(obj))))
   names(args) <- input_names(obj)
 
-  if (is.gsresult(first(obj$value)))
+  if (is.posterior(first(obj$value)))
     args[["out"]] <- "random_sim"
   
   formals(seq_fun) <- args
@@ -172,7 +168,7 @@ as.function.seq_gs <- function(obj) {
 }
 
 
-as.function.gsvar <- function(obj) {
+as.function.data <- function(obj) {
   function(...) {
     args <- mget(names(formals()), sys.frame(sys.nframe()))
     formals(process_seq_in) <- c(args, alist(obj = ))
@@ -183,7 +179,7 @@ as.function.gsvar <- function(obj) {
   }
 }
 
-as.function.gsresult <- function(obj) {
+as.function.posterior <- function(obj) {
   function(..., out = "random_sim") {
     args <- mget(names(formals()), sys.frame(sys.nframe()))
     formals(process_seq_in) <- c(args, alist(obj =))
@@ -208,7 +204,6 @@ process_seq_in <- function(obj, x) {
     if (!is.null(x) && (x < min(seq) || x > max(seq)))
       stop(paste0("No extrapolation allowed outside (", min(seq), ", ", max(seq),
                   "). Increase range in vseq call."))
-    
     return(!(is.null(x) || x %in% obj[[input]]))
   }, logical(1))
 

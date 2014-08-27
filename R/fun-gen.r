@@ -1,14 +1,8 @@
 
 gen_norm <- function(n, mean, sd) {
-  stopifnot(is.gsresult(mean) && is.gsparam(sd))
+  ## todo: check shapes
+  stopifnot(is.posterior(mean) && is.posterior(sd))
+  force(n)
 
-  nobs <- get_n()
-  nsims <- get_nsims()
-
-  res <- matrix(NA, nobs, nsims)
-  for (i in seq_len(nobs)) {
-    res[i, ] <- rnorm(nsims, mean[i, ], sd)
-  }
-
-  gs(res, "gsresult")
+  do_by_sims(mean, sd, fun = rnorm, args = list(n = n))
 }
