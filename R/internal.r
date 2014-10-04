@@ -1,12 +1,21 @@
 
+
 ## Look up objects dynamically through the calling stack
 dyn_get <- function(obj) {
+  res <- .dyn_get(obj)
+  res$object
+}
+
+.dyn_get <- function(obj) {
   n <- 1
-  env <- parent.frame(n)
+  env <- parent.frame(1)
 
   while(!identical(env, globalenv())) {
-    if (exists(obj, envir = env))
-      return(get(obj, envir = env))
+    if (exists(obj, envir = env, inherits = FALSE))
+      return(list(
+        object = get(obj, envir = env),
+        env = env
+      ))
 
     n <- n + 1
     env <- parent.frame(n)
@@ -15,16 +24,32 @@ dyn_get <- function(obj) {
   stop(paste("Cannot find", obj))
 }
 
-get_metadata <- function(obj) {
-  function() dyn_get(obj)
+
+gsim_env <- function() {
+  container_env <- .dyn_get("..gsim_container..")$env
+  env <- parent.env(container_env)$enclos_env
+  env
 }
 
-n <- get_n <- get_metadata("..n..")
-nsims <- get_nsims <- get_metadata("..nsims..")
+input_env <- function() {
+  env <- gsim_env()
+  env$input
+}
+
+metadata_getter <- function(obj) {
+  function() {
+    env <- gsim_env()
+    get(obj, envir = env)
+  }
+}
+
+n <- get_n <- metadata_getter("..n..")
+nsims <- get_nsims <- metadata_getter("..nsims..")
+seq_index <- metadata_getter("..seq_index..")
 
 
 get_in_input <- function(what) {
-  get(what, envir = list2env(dyn_get("..eval_env..")$input))
+  get(what, envir = input_env())
 }
 
 
@@ -88,7 +113,6 @@ is.scalar <- function(x) gsim_class(x) == "numeric" && is.null(dim(x)) && length
 is_any.scalar <- function(...) any(vapply(list(...), is.scalar, logical(1)))
 
 
-## From Hadley
 `%||%` <- function(a, b) {
   if (!is.null(a) && !is.na(a) && length(a) > 0)
     a
@@ -156,4 +180,21 @@ quickdf <- function(x) {
   x %>%
     set_class("data.frame") %>%
     set_attr("row.names", .set_row_names(length(x[[1]])))
+}
+
+
+do_naked <- function(x, expr) {
+  old_attr <- attributes(x)
+  attributes(x) <- NULL
+  x <- eval(substitute(expr))
+  attributes(x) <- old_attr
+  x
+}
+
+do_unclassed <- function(x, expr) {
+  old_class <- class(x)
+  class(x) <- NULL
+  x <- eval(substitute(expr))
+  class(x) <- old_class
+  x
 }

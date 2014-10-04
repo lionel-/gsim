@@ -77,10 +77,15 @@ rbind_cols.data <- function(object) {
   attr(res, "blocks_names") <- colnames(object) %||% rep("", ncols)
   attr(res, "blocks_indices") <- c(0, cumsum(rep(nrows, ncols)))
   attr(res, "dimnames") <- NULL
+  colnames(res) <- last(names(dimnames(object)))
   res
 }
 
 rbind_cols.matrix <- rbind_cols.data
+
+rbind_cols.posterior <- function(object) {
+  do_by_sims(object, fun = rbind_cols.data) 
+}
 
 cbind_blocks <- function(x) UseMethod("cbind_blocks")
 

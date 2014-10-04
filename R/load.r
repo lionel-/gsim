@@ -1,26 +1,30 @@
 
 
-gsim_process <- function(data, mclist, groups = NULL) {
+gsim_process <- function(mclist, data = NULL, groups = NULL) {
   if (first(mclist) %>% is.list)
     mclist <- mcmc_collapse(mclist)
 
   nobs <- nrow(data)
   nsims <- first(dim(first(mclist)))
 
-  data_groups <- gsim_group(data, groups, type = "vars")
   sim_groups  <- gsim_group(mclist, groups, type = "params")
+  mclist <- Map(gs, mclist, class = "posterior", group = sim_groups)
 
-  ## Reduce grouped variables to a vector with one value per group
-  reduce <- function(x, y) {
-    if (!is.null(y)) {
-      x <- unname(tapply(x, data[[y]], unique, simplify = TRUE))
+  if (!is.null(data)) {
+    data_groups <- gsim_group(data, groups, type = "vars")
+
+    ## Reduce grouped variables to a vector with one value per group
+    reduce <- function(x, y) {
+      if (!is.null(y)) {
+        x <- unname(tapply(x, data[[y]], unique, simplify = TRUE))
+      }
+      as.vector(x)
     }
-    as.vector(x)
-  }
-  data <- Map(reduce, data, data_groups)
+    data <- Map(reduce, data, data_groups)
 
-  data   <- Map(gs, data,   class = "data",      group = data_groups, colnames = names(data))
-  mclist <- Map(gs, mclist, class = "posterior", group = sim_groups,  colnames = names(mclist))
+    ## todo: get rid of colnames arg, currently necessary for data objects
+    data   <- Map(gs, data,   class = "data",      group = data_groups, colnames = names(data))
+  }
 
   list(data = data, mclist = mclist)
 }

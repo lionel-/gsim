@@ -1,4 +1,12 @@
 
+pluck <- function(x, i) {
+  lapply(x, `[[`, i)
+}
+
+vpluck <- function(x, i, type = NULL) {
+  if (is.null(type)) type <- x[[1]][[i]]
+  vapply(x, `[[`, i, FUN.VALUE = type)
+}
 
 indices <- function(gs) attr(gs, "indices", exact = TRUE)
 labels <- function(gs) attr(gs, "labels", exact = TRUE)
@@ -140,6 +148,10 @@ make_default_names <- function(n) {
   paste0("gs", suffix)
 }
 
+set_attr <- function(x, attribute, value) {
+  attr(x, attribute) <- value
+  x
+}
 
 set_dim <- function(x, dims) {
   dim(x) <- dims
@@ -154,3 +166,22 @@ set_dimnames <- function(x, names) {
   dimnames(x) <- names
   x
 }
+
+set_last_dimnames <- function(x, nm) {
+  len <- dim_length(x)
+  dimnames <- vector("list", len)
+
+  if (is.list(nm)) {
+    dimnames[len] <- nm
+    names(dimnames)[len] <- names(nm)
+  }
+  else
+    dimnames[[len]] <- nm
+
+  dimnames(x) <- dimnames
+  x
+}
+
+first <- function(x) x[[1]]
+last <- function(x) x[[length(x)]]
+penultimate <- function(x) x[[min(length(x)-1, 1)]]

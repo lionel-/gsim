@@ -26,13 +26,30 @@
 
 ## posterior_to_numeric <- function(x) {
 ##   ## might be a bug for simplified vectors
-##   dim1 <- dim(first(.subset2(x, 2)))
-##   dim2 <- nrow(x) %||% length(.subset2(x, 1))
+##   dim1 <- dim(first(x))
+##   dim2 <- length(x) %||% length(first(x))
 
-##   x$object %>%
+##   x %>%
 ##     Reduce(f = c, .) %>%
 ##     set_dim(c(dim1, dim2))
 ## }
+
+## posterior_to_numeric2 <- function(x) {
+##   dim1 <- dim(first(x))
+##   dim2 <- length(x) %||% length(first(x))
+
+##   x %>%
+##     do.call("c", .) %>%
+##     set_dim(c(dim1, dim2))
+## }
+
+## ## Reduce is much slower for long lists (28s against 0.15)
+## microbenchmark(
+##   posterior_to_numeric(test),
+##   posterior_to_numeric2(test),
+##   times = 1, unit = "s"
+## )
+
 
 
 ## do_by_sims_vectorized_unary <- function(x, fun, ...) {

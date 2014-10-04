@@ -4,6 +4,7 @@
 
 
 vseq <- function(gs = NULL, seq = NULL, input_name = NULL, n = 101) {
+
   if (is.null(gs) && is.null(seq))
     stop("Need either a gs or a sequence")
   stopifnot(is.null(gs) || is.data(gs))
@@ -36,9 +37,9 @@ vseq <- function(gs = NULL, seq = NULL, input_name = NULL, n = 101) {
   seq_gs(res, seq_id)
 }
 
-x <- function(gs = NULL, seq = NULL, n = 101) vseq(gs, seq, "x", n)
-y <- function(gs = NULL, seq = NULL, n = 101) vseq(gs, seq, "y", n)
-z <- function(gs = NULL, seq = NULL, n = 101) vseq(gs, seq, "z", n)
+x <- function(...) vseq(input_name = "x", ...)
+y <- function(...) vseq(input_name = "y", ...)
+z <- function(...) vseq(input_name = "z", ...)
 
 
 seq_gs <- function(res, inputs) {
@@ -50,14 +51,19 @@ seq_gs <- function(res, inputs) {
 is.seq_gs <- function(x) inherits(x, "seq_gs")
 
 
-## Performance is typically not an issue with sequences, so we use
-## dplyr to manipulate and sort sequence objects.
-
-## However, Reduce is inefficient with variadic functions such as
+## Todo: Reduce is inefficient with variadic functions such as
 ## cbind: it will call `operate` nseq * nvar times
 
 seq_operate <- function(..., fun) {
   args <- dots(...)
+  
+  ## Remove unwanted simulations from new posterior objects
+  args <- lapply(args, function(x) {
+    if (is.posterior(x) && length(x) == nsims()) {
+      do_naked(x, x[seq_index()])
+    } else
+      x
+  })
 
   compound_seqs <- function(a, b) {
     if (!any(is.seq_gs(a), is.seq_gs(b))) {
@@ -144,7 +150,16 @@ seq_operate <- function(..., fun) {
       seq_gs(inputs = inputs)
   }
 
-  Reduce(compound_seqs, args)
+  if (length(args) == 1) {
+    a <- first(args)
+    a %>%
+      rowwise() %>%
+      do(value = fun(.$value)) %>%
+      cbind.data.frame(a %>% select(-value), .) %>%
+      seq_gs(inputs = inputs(a))
+  } else {
+    Reduce(compound_seqs, args)
+  }
 }
 
 
@@ -166,9 +181,9 @@ as.function.seq_gs <- function(obj) {
     args[["out"]] <- "random_sim"
   
   formals(seq_fun) <- args
+  class(seq_fun) <- c("seq_fun", "function")
   seq_fun
 }
-
 
 as.function.data <- function(obj) {
   function(...) {
@@ -182,31 +197,72 @@ as.function.data <- function(obj) {
 }
 
 as.function.posterior <- function(obj) {
+  nsims <- length(first(obj$value))
+  sims_perm <- sample(seq_len(nsims), nsims)
+  i <- 1
+
   function(..., out = "random_sim") {
     args <- mget(names(formals()), sys.frame(sys.nframe()))
     formals(process_seq_in) <- c(args, alist(obj =))
 
-    res <- do.call("process_seq_in", c(alist(obj = obj), args)) 
-    if (out == "random_sim")
-      res <- res[[sample(seq_along(res), 1)]]
-    else
-      stop()
+    # Check that the input lengths are the same, or 1 (in which case,
+    # the input is recycled), or 0 (in which case, we use the mean)
+    vars <- args[setdiff(names(args), "out")]
+    vars_lengths <- vapply(vars, length, numeric(1))
+    seq_length <- max(vars_lengths)
+    stopifnot(all(vars_lengths %in% c(seq_length, 1, 0)))
+
+    # Use mean if input is not supplied
+    is_null <- vapply(args, is.null, logical(1))
+    null_vars <- names(args)[is_null]
+    args[null_vars] <- lapply(null_vars, function(x) {
+      (min(obj[x]) + max(obj[x])) / 2
+    })
+
+    # Reshape arguments in a form suitable to do.call and Map
+    args <- Map(function(x, n) {
+      x <- as.list(x)
+      names(x) <- rep(n, length(x))
+      x
+    }, args, names(args))
+    args["obj"] <- list(obj = list(obj))
+
+
+    apply_process <- function(...) {
+      res <- process_seq_in(...)
+      if (length(res) == 1 && is.na(res))
+        rep(NA, length.out = nsims)
+      else
+        do.call(c, res)
+    }
+
+    res <- do.call(function(...) Map(apply_process, ...), args)
+    res <- 
+      if (out == "random_sim")
+        vpluck(res, pick_sim(), numeric(1))
+      else if (is.numeric(out))
+        vpluck(res, out, numeric(1))
+      else stop("out argument not recognized")
     
-    process_seq_out(res)
+    strip_attributes(res)
   }
 }
 
-
-process_seq_in <- function(obj, x) {
+process_seq_in <- function(obj) {
   inputs <- input_names(obj)
 
-  need_interpolate <- vapply(inputs, function(input) {
+  outside_range <- vapply(inputs, function(input) {
     seq <- unique(obj[[input]])
     x <- get(input)
-    if (!is.null(x) && (x < min(seq) || x > max(seq)))
-      stop(paste0("No extrapolation allowed outside (", min(seq), ", ", max(seq),
-                  "). Increase range in vseq call."))
-    return(!(is.null(x) || x %in% obj[[input]]))
+    if (!is.null(x) && (x < min(seq) || x > max(seq))) TRUE
+    else FALSE
+  }, logical(1))
+  if (any(outside_range))
+    return(NA)
+
+  need_interpolate <- vapply(inputs, function(input) {
+    x <- get(input)
+    !(is.null(x) || x %in% obj[[input]])
   }, logical(1))
 
 
@@ -214,16 +270,9 @@ process_seq_in <- function(obj, x) {
     stop("Only one variable can be interpolated. Supply exact values.")
 
 
-  input_vals <- vapply(inputs, function(input) {
-    if (is.null(get(input))) {
-      seq <- unique(obj[[input]])
-      (min(seq) + max(seq)) / 2
-    }
-    else
-      get(input)
-  }, numeric(1))
+  input_vals <- vapply(inputs, get, envir = environment(), numeric(1))
 
-  subset <- input_vals[!need_interpolate] %>% as.list %>% data.frame
+  subset <- input_vals[!need_interpolate] %>% as.list %>% quickdf
   subset <- 
     if (length(subset) == 0)
       obj
@@ -236,16 +285,15 @@ process_seq_in <- function(obj, x) {
     pos <- match_nearest(x, subset[[interp_input]])
 
     if (is.posterior(first(obj$value)))
-      do_by_sims(nth(obj$value, pos[1]), nth(obj$value, pos[2]),
+      do_by_sims(nth(subset$value, pos[1]), nth(subset$value, pos[2]),
                  fun = function(a, b) (a + b) / 2)
     else
-      (nth(obj$value, pos[1]) + nth(obj$value, pos[2])) / 2
+      (nth(subset$value, pos[1]) + nth(subset$value, pos[2])) / 2
 
   } else {
     single(subset$value)
   }
 }
-
 
 process_seq_out <- function(res) {
   if (length(res) > 1)
@@ -253,8 +301,6 @@ process_seq_out <- function(res) {
   else
     strip_attributes(res)
 }
-
-
 
 match_nearest <- function(x, seq) {
   pos <- which(abs(seq - x) == min(abs(seq - x)))
@@ -276,7 +322,16 @@ match_nearest <- function(x, seq) {
   c(pos, pos2)
 }
 
-
+pick_sim <- function() {
+  env <- parent.env(parent.frame())
+  sim <- env$sims_perm[env$i]
+  env$i <- env$i + 1
+  if (env$i > env$nsims) {
+    env$i <- 1
+    env$sims_perm <- sample(seq_len(env$nsims), env$nsims)
+  }
+  sim
+}
 
 strip_attributes <- function(x) {
   ## Keep dims otherwise matrices will be coerced to vectors etc
@@ -286,10 +341,28 @@ strip_attributes <- function(x) {
   x
 }
 
-
-
 inputs <- function(x) attr(x, "inputs")
 
 input_names <- function(x) names(inputs(x))
 
 ids <- function(x) vapply(inputs(x), identity, character(1))
+
+
+#' @export
+print.seq_fun <- function(x) {
+  obj <- environment(x)$obj
+
+  names <- setdiff(names(obj), "value")
+  nvar <- length(names)
+  var_n <- vapply(obj[names], n_distinct, numeric(1))
+  values <- vapply(obj[names], function(x) {
+    if (n_distinct(x) > 5)
+      paste0("(from ", round(min(x), 2), " to ", round(max(x), 2), ")")
+    else
+      paste0("(", paste(unique(x), collapse = ", "), ")")
+  }, character(1))
+
+  cat("gsim sequence with", nvar, "variables\n")
+  for (i in seq_len(nvar))
+    cat("  ", paste0(names[i], ":"), var_n[i], "distinct values", values[i], "\n")
+}

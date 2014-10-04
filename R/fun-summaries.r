@@ -23,6 +23,16 @@
 ## }
 
 
+## should we recognize the array nature of gs objects and reimplement
+## summarise and mutate accordingly?
+
+## summarise_sims should work elementwise (to get posterior mean of
+## covariance matrix for example), while summarise_obs takes whole
+## arrays as argument?
+
+## What about mutate?
+
+
 summarise_obs <- function(gs, ...) {
   class <- gsim_class(gs)
 
@@ -38,19 +48,23 @@ summarise_obs <- function(gs, ...) {
   }
 }
 
-summarise_sims <- function(gs, ...) {
-  class <- gsim_class(gs)
-
-  if (!is.data.frame(gs))
-    gs <- as.data.frame(gs)
-
-  if (class == "data")
+summarise_sims <- function(gs, fun) {
+  if (gsim_class(gs) == "data")
     stop("No simulations to summarise")
-  else if (is.posterior(gs)) {
-    gs %>%
-      dplyr::group_by(obs, add = TRUE) %>%
-      summarise.gs(...)
-  }
+
+  old_attr <- attributes(first(gs))
+
+  nsims <- length(gs)
+  len <- length(first(gs))
+  flat <- unlist(gs, use.names = FALSE)
+
+  res <- vector("numeric", len)
+  for (i in seq_len(len))
+    res[i] <- fun(flat[seq(i, nsims * len - (len - i), by = len)])
+
+  attributes(res) <- old_attr
+  res %>%
+    set_class("array")
 }
 
 ## Hacky-dirty until Hadley includes programmable versions in dplyr
@@ -230,6 +244,7 @@ tail.gsresult <- function(x, n = 6) {
   }
 }
 
+
 #' @export
 head.posterior <- function(x, n = 6) {
   x <- x[[sample(seq_along(x), 1)]]
@@ -251,4 +266,11 @@ tail.posterior <- function(x, n = 6) {
   } else {
     x[(l-n)]
   }
+}
+
+
+#' @export
+print.posterior <- function(x) {
+  x <- x[[sample(seq_along(x), 1)]]
+  print(x)
 }

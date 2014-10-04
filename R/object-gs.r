@@ -7,15 +7,19 @@ gs <- function(object, class = "data", group = NULL, colnames = NULL) {
     if (is.null(dim(object)))
       object <- array(object, c(length(object), 1))
 
-     res <- object %>%
+    names <-
+      if (dim_length(object) == 2)
+        last(names(dimnames(object)))
+      else
+        dimnames(object)[dim_length(object)]
+
+    res <- object %>%
       apply(1, list) %>%
       lapply(function(x) {
-        colnames <- last(dimnames(x), default = NULL) %||% colnames
-        x[[1]] %>%
+        x <- x[[1]]
+        x %>%
           as.gsarray %>%
-          ## gs("data", colnames = colnames) %>%
-          set_colnames(colnames) %>%
-          rbind_cols
+          set_last_dimnames(names)
       })
 
     res %>%
@@ -44,21 +48,11 @@ set_gsim_attributes <- function(object, class, group = NULL) {
 }
 
 
-#' @export
 is.gs         <- function(x) inherits(x, "gs")
-
-#' @export
 is.grouped_gs <- function(x) inherits(x, "grouped_gs")
+is.data       <- function(x) inherits(x, "data")
+is.posterior  <- function(x) inherits(x, "posterior")
 
-#' @export
-is.data      <- function(x) inherits(x, "data")
-
-#' @export
-is.posterior    <- function(x) inherits(x, "posterior")
-
-
-
-#' @export
 gsim_class <- function(x) {
   if (is.seq_gs(x)) return("seq_gs")
   else if (is.posterior(x)) return("posterior")
@@ -80,14 +74,8 @@ set_gsim_class <- function(gs, class, grouped = NULL) {
 
 `gsim_class<-` <- function(gs, class) set_gsim_class(gs, class)
 
-## as.data.frame.gs <- function(gs) {
-##   ## fixme: For some reason, method dispatch does not work...
-##   if (is.data(gs))
-##     as.data.frame.data(gs)
-##   else
-##     as.data.frame.posterior(gs)
-## }
 
+#' @export
 as.data.frame.data <- function(gs, ...) {
   if (dim_length(gs) > 2)
     gs %>% adply(seq_len(dim(gs)))
@@ -103,6 +91,7 @@ as.data.frame.data <- function(gs, ...) {
   }
 }
 
+#' @export
 as.data.frame.posterior <- function(gs, ...) {
   dim <- gsim_dim(gs)
 
@@ -113,9 +102,9 @@ as.data.frame.posterior <- function(gs, ...) {
     res <- vapply(gs, as.matrix, numeric(dim[1])) %>%
       as.data.frame %>%
       set_colnames(seq_along(gs)) %>%
-      cbind(obs = seq_len(dim[1]), .) %>%
+      cbind(element = seq_len(dim[1]), .) %>%
       gs_regroup(group(gs)) %>%
-      gather_("sim", "gs", paste0(1:500))
+      gather_("sim", "value", paste0(seq_along(gs)))
 
     if (!is.null(group(gs)))
       regroup(res, list(group(gs)))
@@ -131,6 +120,7 @@ as.data.frame.posterior <- function(gs, ...) {
       gs_regroup(group(gs))
 }
 
+
 gs_regroup <- function(res, group) {
   if (!is.null(group)) {
     ## group is as.vector'd to convert it to character or numeric
@@ -142,7 +132,19 @@ gs_regroup <- function(res, group) {
 }
 
 
-subset_data <- function(gs, name) {
+subset_col.data <- function(gs, name) stop("todo")
+subset_col.posterior <- function(gs, name) stop("todo")
+
+subset_block_nonstd <- function(gs, name) {
+  name <- deparse(substitute(name))
+  subset_block(gs, name)
+}
+
+subset_block <- function(gs, name) {
+  UseMethod("subset_block") 
+}
+
+subset_block.data <- function(gs, name) {
   if (is.col_vector(gs)) {
     if (is.null(attr(gs, "blocks_names")))
       stop("this object has no blocks")
@@ -157,11 +159,9 @@ subset_data <- function(gs, name) {
   gs(gs, class, colnames = name)
 }
 
-
-subset_posterior <- function(gs, name) {
-  do_by_sims(gs, fun = subset_data, args = list(name))
+subset_block.posterior <- function(gs, name) {
+  do_by_sims(gs, fun = subset_block.data, args = list(name))
 }
-
 
 block_index <- function(gs, name) {
   which <- match(name, attr(gs, "blocks_name")) %||% stop("block not found")
