@@ -9,12 +9,8 @@ vpluck <- function(x, i, type = NULL) {
 }
 
 indices <- function(gs) attr(gs, "indices", exact = TRUE)
+
 labels <- function(gs) attr(gs, "labels", exact = TRUE)
-
-
-sample_nsims <- function(data, nsims, n = 5) {
-  extract(data, , sample(seq(nsims), n))
-}
 
 
 ## Faster than apply because uses colMeans
@@ -33,48 +29,9 @@ rowVars <- function(a) {
 }
 
 
-get_name <- function(gs) {
-  name <- attr(gs, "name", exact = TRUE)
-  if (is.null(name)) "gs"
-  else name
-}
-## name <- get_name
-
-
-#' @export
-`name<-` <- function(gs, value) {
-  attr(gs, "name") <- value
-  gs
-}
-
-set_name <- function(x, name) {
-  UseMethod("set_name")
-}
-
-set_name.gs <- `name<-`
-set_name.numeric <- `name<-`
-
-#' @export
-set_name.data.frame <- function(df, name) {
-  if (is.null(df["gs"]))
-    stop("column \"gs\" not found")
-  else names(df)[match("gs", names(df))] <- name
-  df
-}
-
-
 utils <- list()
-
 utils$class <- function(x) cat(class(x), "\n")
 utils$str <- function(x) cat(str(x), "\n")
-
-
-
-make_names_unique <- function(names) {
-  # todo: make gs1 = gs2 when there are two gs
-  make.unique(names, sep = "")
-}
-
 
 
 group <- function(gs) attr(gs, "group")
