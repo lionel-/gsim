@@ -26,7 +26,7 @@ dyn_get <- function(obj) {
 
 
 gsim_env <- function() {
-  container_env <- .dyn_get("..gsim_container..")$env
+  container_env <- .dyn_get("_gsim_container")$env
   env <- parent.env(container_env)$enclos_env
   env
 }
@@ -43,9 +43,9 @@ metadata_getter <- function(obj) {
   }
 }
 
-n <- get_n <- metadata_getter("..n..")
-nsims <- get_nsims <- metadata_getter("..nsims..")
-seq_index <- metadata_getter("..seq_index..")
+n <- get_n <- metadata_getter("_n")
+nsims <- get_nsims <- metadata_getter("_nsims")
+seq_index <- metadata_getter("_seq_index")
 
 
 get_in_input <- function(what) {

@@ -17,11 +17,10 @@ gsim <- function(mclist, data = NULL, groups = NULL, sequences_nsims = 100) {
   enclos_env <- new.env(parent = asNamespace("gsim"))
   ## Map(function(fun, name) assign(name, fun, envir = enclos_env$eval_env), utils, names(utils))
 
-  enclos_env$..n.. <- nrow(data)
-  enclos_env$..nsims.. <- nsims
-  enclos_env$..seq_index.. <- sample(seq_len(enclos_env$..nsims..), sequences_nsims)
+  enclos_env$`_n` <- nrow(data)
+  enclos_env$`_nsims` <- nsims
+  enclos_env$`_seq_index` <- sample(seq_len(enclos_env$`_nsims`), sequences_nsims)
 
-  enclos_env$`<-` <- function(a, b) assign(deparse(substitute(a)), b, envir = enclos_env$input)
   enclos_env$ones <- ones_
   enclos_env$rbind <- rbind.gs
   enclos_env$cbind <- cbind.gs
@@ -32,24 +31,12 @@ gsim <- function(mclist, data = NULL, groups = NULL, sequences_nsims = 100) {
   enclos_env$`[.gs` <- subset.gs
 
   enclos_env$input <- gsim_process(mclist, data, groups) %>% flatten %>% list2env(parent = enclos_env)
+  enclos_env$input$`_stack` <- list()
 
-  
+
   fun <- function(x) {
-    ..gsim_container.. <- TRUE
+    `_gsim_container` <- TRUE
     x <- substitute(x)
-
-    eval_statement <- function(x) {
-      eval(x, enclos_env$input)
-    }
-    ## With this enclosing environment, ..n.., ..nsims.. and `input` can
-    ## be looked up dynamically. todo: still needed?
-    ## environment(eval_statement) <- enclos_env
-
-    eval_curly <- function(x) {
-      x <- x[seq(2, length(x))]
-      res <- lapply(x, eval_statement)
-      res[[length(res)]]
-    }
 
 
     ## When passed a name, it is evaluated in globenv. Need to
