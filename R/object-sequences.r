@@ -322,16 +322,16 @@ match_nearest <- function(x, seq) {
   c(pos, pos2)
 }
 
-pick_sim <- function() {
-  env <- parent.env(parent.frame())
-  sim <- env$sims_perm[env$i]
-  env$i <- env$i + 1
-  if (env$i > env$nsims) {
-    env$i <- 1
-    env$sims_perm <- sample(seq_len(env$nsims), env$nsims)
-  }
-  sim
-}
+## pick_sim <- function() {
+##   env <- parent.env(parent.frame())
+##   sim <- env$sims_perm[env$i]
+##   env$i <- env$i + 1
+##   if (env$i > env$nsims) {
+##     env$i <- 1
+##     env$sims_perm <- sample(seq_len(env$nsims), env$nsims)
+##   }
+##   sim
+## }
 
 strip_attributes <- function(x) {
   ## Keep dims otherwise matrices will be coerced to vectors etc

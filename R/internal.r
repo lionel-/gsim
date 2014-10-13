@@ -25,20 +25,20 @@ dyn_get <- function(obj) {
 }
 
 
-gsim_env <- function() {
+container_env <- function() {
   container_env <- .dyn_get("_gsim_container")$env
   env <- parent.env(container_env)$enclos_env
   env
 }
 
 input_env <- function() {
-  env <- gsim_env()
+  env <- container_env()
   env$input
 }
 
 metadata_getter <- function(obj) {
   function() {
-    env <- gsim_env()
+    env <- container_env()
     get(obj, envir = env)
   }
 }

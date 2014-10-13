@@ -4,48 +4,31 @@ gs <- function(object, class = "data", group = NULL, colnames = NULL) {
   assert_that(class %in% c("numeric", "data", "posterior"))
 
   if (class == "posterior") {
-    if (is.null(dim(object)))
-      object <- array(object, c(length(object), 1))
-
-    names <-
-      if (dim_length(object) == 2)
-        last(names(dimnames(object)))
+    res <- 
+      # Adjust dimensions to ensure that vectors will be considered as
+      # arrays when conditioning on particular simulations
+      if (is.null(dim(object)))
+        array(object, c(length(object), 1))
+      else if (dim_length(object) == 2)
+        array(object, c(dim(object), 1))
       else
-        dimnames(object)[dim_length(object)]
-
-    res <- object %>%
-      apply(1, list) %>%
-      lapply(function(x) {
-        x <- x[[1]]
-        x %>%
-          as.gsarray %>%
-          set_last_dimnames(names)
-      })
-
-    res %>%
-      set_gsim_attributes("posterior", group)
+        object
   }
 
   else {
-    object %<>% as.gsarray
-    colnames(object) <- colnames
-    object %>%
-      set_gsim_attributes("data", group)
+    res <- as.gsarray(object)
+    colnames(res) <- colnames
   }
-}
 
-
-set_gsim_attributes <- function(object, class, group = NULL) {
-  object <- structure(
-    object,
-    group = group
+  structure(
+    res,
+    group = group,
+    class = c("gs", class)
   )
-
-  object %<>%
-    set_gsim_class(class, grouped = !is.null(group))
-
-  object
 }
+
+data <- function(object) gs(object, "data")
+posterior <- function(object = NULL) gs(object, "posterior")
 
 
 is.gs         <- function(x) inherits(x, "gs")

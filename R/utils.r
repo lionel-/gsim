@@ -141,4 +141,60 @@ set_last_dimnames <- function(x, nm) {
 
 first <- function(x) x[[1]]
 last <- function(x) x[[length(x)]]
+`first<-` <- function(x, value) {
+  x[[1]] <- value
+  x
+}
+`last<-` <- function(x, value) {
+  x[[length(x)]] <- value
+  x
+}
 penultimate <- function(x) x[[min(length(x)-1, 1)]]
+
+
+subset_along <- function(object, index) {
+  for (i in seq_along(index))
+    object <- `[[`(object, index[i])
+  object
+}
+
+`subset_along<-` <- function(object, index, value) {
+  temp <- vector("list", length(index) + 1)
+  temp[[1]] <- object
+
+  for (i in seq_along(index))
+    temp[[i+1]] <- `[[`(temp[[i]], index[i])
+  last(temp) <- value
+
+  for (i in rev(seq_along(index)))
+    temp[[i]][[index[i]]] <- temp[[i+1]]
+  temp[[1]]
+}
+
+
+compact <- function(list) {
+  list <- Filter(Negate(is.null), list)
+  lapply(list, function(item) {
+    if (is.list(item))
+      compact(item)
+    else
+      item
+  })
+}
+
+flatten <- function(list) {
+  recurser <- function(x) {
+    if (is.list(x))
+      lapply(x, recurser)
+
+    else {
+      env <- .dyn_get("res")$env
+      env$res <- c(res, list(x))
+    }
+  }
+
+  res <- list()
+  recurser(list)
+  res
+}
+

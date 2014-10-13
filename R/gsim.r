@@ -20,18 +20,18 @@ gsim <- function(mclist, data = NULL, groups = NULL, sequences_nsims = 100) {
   enclos_env$`_n` <- nrow(data)
   enclos_env$`_nsims` <- nsims
   enclos_env$`_seq_index` <- sample(seq_len(enclos_env$`_nsims`), sequences_nsims)
+  enclos_env$`_call_stack` <- list()
 
+  ## enclos_env$`<-` <- function(a, b) increment_posterior(deparse(substitute(a)), b)
   enclos_env$ones <- ones_
-  enclos_env$rbind <- rbind.gs
-  enclos_env$cbind <- cbind.gs
   enclos_env$rnorm <- gen_norm
   enclos_env$`$.data` <- subset_col.data
   enclos_env$`$.posterior` <- subset_col.posterior
   enclos_env$`%%` <- subset_block_nonstd
-  enclos_env$`[.gs` <- subset.gs
 
-  enclos_env$input <- gsim_process(mclist, data, groups) %>% flatten %>% list2env(parent = enclos_env)
+  enclos_env$input <- gsim_process(mclist, data, groups) %>% list2env(parent = enclos_env)
   enclos_env$input$`_stack` <- list()
+  enclos_env$input$`_i` <- 0
 
 
   fun <- function(x) {
@@ -39,24 +39,24 @@ gsim <- function(mclist, data = NULL, groups = NULL, sequences_nsims = 100) {
     x <- substitute(x)
 
 
-    ## When passed a name, it is evaluated in globenv. Need to
-    ## substitute it and evaluate it in env$input.
+    # When passed a name, it is evaluated in globenv. Need to
+    # substitute it and evaluate it in env$input.
 
-    ## Then, should only accept quotes and "{" objects. All other
-    ## things should be evalled in env$input. Because user may have two
-    ## objects identically named in the global env and env$input. We
-    ## want to operate only on the object located in env$input.
+    # Then, should only accept quotes and "{" objects. All other
+    # things should be evalled in env$input. Because user may have two
+    # objects identically named in the global env and env$input. We
+    # want to operate only on the object located in env$input.
 
 
-    ## If user passes a quoted "{", evaluate the quote to get the "{" object
+    # If user passes a quoted "{", evaluate the quote to get the "{" object
     if (try(class(eval(x)), silent = TRUE)[1] == "{") {
       beep(3)
       x <- eval(x) 
     }
      
-    ## When user passes a list of names, make sure the names represent
-    ## quoted "{" objects, evaluate them sequentially, and return last
-    ## result
+    # When user passes a list of names, make sure the names represent
+    # quoted "{" objects, evaluate them sequentially, and return last
+    # result
     if (class(x) == "call" && x[[1]] == "list") {
       beep(5)
       args <- as.list(x[-1])
@@ -72,17 +72,17 @@ gsim <- function(mclist, data = NULL, groups = NULL, sequences_nsims = 100) {
 
     }
 
-    ## When user passes a "{" list as argument, evaluate the
-    ## components sequentially and return last result
+    # When user passes a "{" list as argument, evaluate the
+    # components sequentially and return last result
     else if (class(x) == "{") {
       ## beep(7)
       res <- eval_curly(x)
     }
     
-    ## Could be a name or a function (such as assignment: `<-`)
+    # Could be a name or a function (such as assignment: `<-`)
     else if (is.language(x)) {
-      ## beep(2)
-      res <- eval_statement(x)
+      # beep(2)
+      res <- eval_statement(x, eval_posterior = TRUE)
     }
 
 

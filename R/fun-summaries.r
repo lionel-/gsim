@@ -271,6 +271,7 @@ tail.posterior <- function(x, n = 6) {
 
 #' @export
 print.posterior <- function(x) {
-  x <- x[[sample(seq_along(x), 1)]]
+  i <- sample(dim(x)[1], 1)
+  x <- pick_sim(x, i)
   print(x)
 }

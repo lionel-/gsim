@@ -23,52 +23,43 @@ gsim_process <- function(mclist, data = NULL, groups = NULL) {
     data <- Map(reduce, data, data_groups)
 
     ## todo: get rid of colnames arg, currently necessary for data objects
-    data   <- Map(gs, data,   class = "data",      group = data_groups, colnames = names(data))
+    data <- Map(gs, data, class = "data", group = data_groups, colnames = names(data))
   }
 
-  list(data = data, mclist = mclist)
+  c(data, mclist)
 }
 
 
-#' @export
-gsim_assign <- function(data, mclist, groups = NULL) {
-  sim <- gsim_process(data, mclist, groups)
+## #' @export
+## gsim_assign <- function(data, mclist, groups = NULL) {
+##   sim <- gsim_process(data, mclist, groups)
 
-  env <- parent.frame()
-  for (i in seq_along(sim$mclist)) {
-    assign(names(sim$mclist)[i], sim$mclist[[i]], envir = env)
-  }
-  for (i in seq_along(sim$data)) {
-    assign(names(sim$data)[i], sim$data[[i]], envir = env)
-  }
-}
-
-
-#' @export
-gsim_attach <- function(data, mclist, groups = NULL) {
-  # todo: check that ..gsim.. is not already in search path
-
-  sim <- gsim_process(data, mclist, groups) %>%
-    flatten
-
-  nobs <- nrow(data)
-  nsims <- dim(mclist[[1]])[2] %>% unname
-
-  sim$`..n..` <- nobs
-  sim$`..nsims..` <- nsims
-
-  attach(sim, name = "..gsim..")
-}
-
-#' @export
-gsim_detach <- function() {
-  detach("..gsim..")
-}
+##   env <- parent.frame()
+##   for (i in seq_along(sim$mclist)) {
+##     assign(names(sim$mclist)[i], sim$mclist[[i]], envir = env)
+##   }
+##   for (i in seq_along(sim$data)) {
+##     assign(names(sim$data)[i], sim$data[[i]], envir = env)
+##   }
+## }
 
 
-flatten <- function(x) {
-  x %<>% unlist(recursive = FALSE)
-  names(x) %<>% str_replace("^data\\.|^mclist\\.", "")
-  x
-}
+## #' @export
+## gsim_attach <- function(data, mclist, groups = NULL) {
+##   # todo: check that ..gsim.. is not already in search path
 
+##   sim <- gsim_process(data, mclist, groups)
+
+##   nobs <- nrow(data)
+##   nsims <- dim(mclist[[1]])[2] %>% unname
+
+##   sim$`..n..` <- nobs
+##   sim$`..nsims..` <- nsims
+
+##   attach(sim, name = "_gsim")
+## }
+
+## #' @export
+## gsim_detach <- function() {
+##   detach("_gsim")
+## }
