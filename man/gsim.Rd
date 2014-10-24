@@ -5,7 +5,7 @@
 \alias{gsim-package}
 \title{gsim.}
 \usage{
-gsim(mclist, data = NULL, groups = NULL, sequences_nsims = 100)
+gsim(mclist, data = NULL, groups = NULL)
 }
 \description{
 gsim.

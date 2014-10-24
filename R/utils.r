@@ -172,14 +172,19 @@ subset_along <- function(object, index) {
 }
 
 
-compact <- function(list) {
+compact <- function(list, recursive = FALSE) {
   list <- Filter(Negate(is.null), list)
-  lapply(list, function(item) {
-    if (is.list(item))
-      compact(item)
-    else
-      item
-  })
+
+  if (recursive)
+    lapply(list, function(item) {
+      if (is.list(item))
+        compact(item, recursive = TRUE)
+      else
+        item
+    })
+
+  else
+    list
 }
 
 flatten <- function(list) {

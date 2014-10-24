@@ -6,31 +6,24 @@
 
 
 #' @export
-gsim <- function(mclist, data = NULL, groups = NULL, sequences_nsims = 100) {
+gsim <- function(mclist, data = NULL, groups = NULL) {
   if (!is.mclist(mclist))
     mclist <- as.mclist(mclist)
-
   nsims <- dim(mclist[[1]])[1]
-  if (sequences_nsims == "all" || sequences_nsims > nsims)
-    sequences_nsims <- nsims
 
   enclos_env <- new.env(parent = asNamespace("gsim"))
-  ## Map(function(fun, name) assign(name, fun, envir = enclos_env$eval_env), utils, names(utils))
 
   enclos_env$`_n` <- nrow(data)
   enclos_env$`_nsims` <- nsims
-  enclos_env$`_seq_index` <- sample(seq_len(enclos_env$`_nsims`), sequences_nsims)
   enclos_env$`_call_stack` <- list()
+  enclos_env$`_reactive_stack` <- list()
+  enclos_env$`_locked` <- NULL
 
-  ## enclos_env$`<-` <- function(a, b) increment_posterior(deparse(substitute(a)), b)
   enclos_env$ones <- ones_
   enclos_env$rnorm <- gen_norm
-  enclos_env$`$.data` <- subset_col.data
-  enclos_env$`$.posterior` <- subset_col.posterior
-  enclos_env$`%%` <- subset_block_nonstd
 
   enclos_env$input <- gsim_process(mclist, data, groups) %>% list2env(parent = enclos_env)
-  enclos_env$input$`_stack` <- list()
+  enclos_env$input$`_ref_stack` <- 0
   enclos_env$input$`_i` <- 0
 
 
@@ -82,18 +75,21 @@ gsim <- function(mclist, data = NULL, groups = NULL, sequences_nsims = 100) {
     # Could be a name or a function (such as assignment: `<-`)
     else if (is.language(x)) {
       # beep(2)
-      res <- eval_statement(x, eval_posterior = TRUE)
+      res <- eval_statement(x, last_statement = TRUE)
     }
 
 
-    if (inherits(res, c("AsIs", "matrix", "array")))
+    if (inherits(res, "AsIs"))
       class(res) <- setdiff(class(res), "AsIs")
-    else {
+
+    # LHS do not get the attributes of RHS?
+    else if (!is.null(res)) {
       res <-
         if (is.seq_gs(res))
           as.function(res)
         else
-          as.data.frame(res)
+          res
+          ## as.data.frame(res)
     }
 
     invisible(res)
@@ -102,6 +98,14 @@ gsim <- function(mclist, data = NULL, groups = NULL, sequences_nsims = 100) {
   
   class(fun) <- c("gsim_fun", "function")
   invisible(fun)
+}
+
+
+container_getter <- function(object) {
+  function() {
+    env <- container_env()
+    env[[object]]
+  }
 }
 
 
@@ -124,3 +128,4 @@ print.gsim_fun <- function(x) {
 
   cat("gsim container with", n_data, "variables and", n_posterior, "parameters\n")
 }
+

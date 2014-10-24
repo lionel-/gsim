@@ -2,165 +2,38 @@
 
 ## curve (invlogit (cbind (1, x/100, .5) %*% coef(fit.3)), add=TRUE)
 
-
-vseq <- function(gs = NULL, seq = NULL, input_name = NULL, n = 101) {
-
-  if (is.null(gs) && is.null(seq))
-    stop("Need either a gs or a sequence")
-  stopifnot(is.null(gs) || is.data(gs))
-
-  if (is.null(input_name))
-    input_name <- name(gs)
-  if (is.null(seq))
-    seq <- seq(range(gs)[1], range(gs)[2], length.out = n)
-
-  ## Ensure mean of sequence is included (because this is the default
-  ## value when user omits to specify argument in sequence function).
-  seq_mean <- mean(c(min(seq), max(seq)))
-  if (!seq_mean %in% seq)
-    seq <- c(seq, seq_mean) %>% sort
-
-  gs_seq <- lapply(seq, gs, class = "data", colnames = input_name) %>%
-    list %>%
-    set_class("data.frame") %>%
-    set_attr("row.names", .set_row_names(1))
-
-  res <- data.frame(
-    seq = seq,
-    value = gs_seq
+reactive <- function(call, input_names, args = NULL) {
+  structure(
+    call,
+    class = "reactive",
+    input_names = input_names,
+    args = args
   )
-
-  seq_id <- list()
-  seq_id[input_name] <- runif(1) %>% as.character
-  names(res)[1] <- input_name
-
-  seq_gs(res, seq_id)
 }
 
-x <- function(...) vseq(input_name = "x", ...)
-y <- function(...) vseq(input_name = "y", ...)
-z <- function(...) vseq(input_name = "z", ...)
+input <- function(input, input_names = NULL, ...) {
+  #todo: is it still necessary to check in input?
+  obj <- get_in_input(as.character(input))
+  if (is.null(input_names) && is.input(obj))
+    input_names <- attr(obj, "input_names")
 
-
-seq_gs <- function(res, inputs) {
-  class(res) <- c("gs", "seq_gs", "data.frame")
-  attr(res, "inputs") <- inputs
-  res
+  structure(
+    input,
+    class = "input",
+    input_names = input_names,
+    ...
+  )
 }
 
-is.seq_gs <- function(x) inherits(x, "seq_gs")
+is.input <- function(x) inherits(x, "input")
+is.reactive <- function(x) inherits(x, c("reactive", "input"))
+
+x <- function() input("x", input_names = "x")
+y <- function() input("y", input_names = "y")
+z <- function() input("z", input_names = "z")
 
 
-## Todo: Reduce is inefficient with variadic functions such as
-## cbind: it will call `operate` nseq * nvar times
 
-seq_operate <- function(..., fun) {
-  args <- dots(...)
-  
-  ## Remove unwanted simulations from new posterior objects
-  args <- lapply(args, function(x) {
-    if (is.posterior(x) && length(x) == nsims()) {
-      do_naked(x, x[seq_index()])
-    } else
-      x
-  })
-
-  compound_seqs <- function(a, b) {
-    if (!any(is.seq_gs(a), is.seq_gs(b))) {
-      return(fun(a, b))
-    }
-
-    else if (!is.seq_gs(a)) {
-      res <- b %>%
-        rowwise() %>%
-        do(value = fun(a, .$value)) %>%
-        cbind.data.frame(select(b, -value), .) %>%
-        seq_gs(inputs = inputs(b))
-
-      return(res)
-    }
-
-    else if (!is.seq_gs(b)) {
-      res <- a %>%
-        rowwise() %>%
-        do(value = fun(.$value, b)) %>%
-        cbind.data.frame(a %>% select(-value), .) %>%
-        seq_gs(inputs = inputs(a))
-      return(res)
-    }
-
-
-    ## Multiple sequences
-
-    not_in_a_p <- !ids(b) %in% ids(a)
-    inputs_a <- input_names(a)
-    inputs_b <- input_names(b)
-    inputs_not_in_a <- input_names(b)[not_in_a_p]
-    inputs_not_in_b <- input_names(a)[!ids(a) %in% ids(b)]
-    twins <- input_names(b)[ids(b)  %in% ids(a)]
-
-
-    ## Todo: check that redundant names have the same id
-    inputs <- c(inputs(a), inputs(b)[not_in_a_p])
-    Reduce(function(x, y) {stopifnot(!x == y); y}, inputs, NULL)
-
-
-    ## Arranging common sequences (columns twins) in the same order
-    a <- a %>% arrange_s(c(twins, inputs_not_in_b))
-    b <- b %>% arrange_s(c(twins, inputs_not_in_a))
-
-
-    seq_length <- function(obj) {
-      Reduce(function(x, y) length(unique(x)) * length(unique(y)), obj, 1)
-    }
-
-    b_factor <- seq_length(a[inputs_not_in_b])
-    a_factor <- seq_length(b[inputs_not_in_a])
-    
-    ## Expanding grid. Using rep.int trick for performance, but need
-    ## to expand vector of gs objects with usual subsetting.
-    ##   - Repeat b by length of new variables in a
-    ##   - Repeat a by length of new variables in b
-    exp_gs_a <- a["value"][rep(seq_len(nrow(a)), a_factor), ]
-    exp_gs_b <- b["value"][rep(seq_len(nrow(b)), each = b_factor), ]
-    
-    exp_a <-
-      Reduce(function(a1, a2) cbind(safe_rep.int(a1, a_factor),
-                             safe_rep.int(a2, a_factor)),
-             a[-length(a)], NULL) %>%
-      data.frame(value1 = I(exp_gs_a))
-
-    exp_b <-
-      Reduce(function(b1, b2) cbind(rep(b1, each = b_factor),
-                             rep(b2, each = b_factor)),
-             b[-length(b)], NULL) %>%
-      data.frame(value2 = I(exp_gs_b)) %>%
-      set_names(inputs_b, "value") %>%
-      extract(, c(inputs_not_in_a, "value"))
-
-
-    merged <- data.frame(exp_a, exp_b) %>%
-      set_names(inputs_a, "value1", inputs_not_in_a, "value2")
-
-    merged %>%
-      rowwise() %>%
-      do(value = fun(.$value1, .$value2)) %>%
-      cbind(merged, .) %>%
-      select(-c(value1, value2)) %>%
-      seq_gs(inputs = inputs)
-  }
-
-  if (length(args) == 1) {
-    a <- first(args)
-    a %>%
-      rowwise() %>%
-      do(value = fun(.$value)) %>%
-      cbind.data.frame(a %>% select(-value), .) %>%
-      seq_gs(inputs = inputs(a))
-  } else {
-    Reduce(compound_seqs, args)
-  }
-}
 
 
 as.function.seq_gs <- function(obj) {
@@ -341,15 +214,9 @@ strip_attributes <- function(x) {
   x
 }
 
-inputs <- function(x) attr(x, "inputs")
-
-input_names <- function(x) names(inputs(x))
-
-ids <- function(x) vapply(inputs(x), identity, character(1))
-
 
 #' @export
-print.seq_fun <- function(x) {
+print.interactive_fun <- function(x) {
   obj <- environment(x)$obj
 
   names <- setdiff(names(obj), "value")

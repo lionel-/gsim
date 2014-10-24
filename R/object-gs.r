@@ -3,22 +3,15 @@
 gs <- function(object, class = "data", group = NULL, colnames = NULL) {
   assert_that(class %in% c("numeric", "data", "posterior"))
 
-  if (class == "posterior") {
-    res <- 
-      # Adjust dimensions to ensure that vectors will be considered as
-      # arrays when conditioning on particular simulations
-      if (is.null(dim(object)))
-        array(object, c(length(object), 1))
-      else if (dim_length(object) == 2)
-        array(object, c(dim(object), 1))
-      else
-        object
-  }
+  res <- 
+    if (class == "posterior")
+      object
 
-  else {
-    res <- as.gsarray(object)
-    colnames(res) <- colnames
-  }
+    else {
+      res <- as.gsarray(object)
+      colnames(res) <- colnames
+      res
+    }
 
   structure(
     res,
