@@ -11,20 +11,23 @@ gsim <- function(mclist, data = NULL, groups = NULL) {
     mclist <- as.mclist(mclist)
   nsims <- dim(mclist[[1]])[1]
 
-  enclos_env <- new.env(parent = asNamespace("gsim"))
+  `_enclos_env` <- new.env(parent = asNamespace("gsim"))
 
-  enclos_env$`_n` <- nrow(data)
-  enclos_env$`_nsims` <- nsims
-  enclos_env$`_call_stack` <- list()
-  enclos_env$`_reactive_stack` <- list()
-  enclos_env$`_locked` <- NULL
+  `_enclos_env`$`_n` <- nrow(data)
+  `_enclos_env`$`_nsims` <- nsims
+  `_enclos_env`$`_call_stack` <- list()
+  `_enclos_env`$`_reactive_stack` <- list()
+  `_enclos_env`$`_reactive_lhs` <- list()
+  `_enclos_env`$`_locked` <- NULL
 
-  enclos_env$ones <- ones_
-  enclos_env$rnorm <- gen_norm
+  `_enclos_env`$ones <- ones_
+  `_enclos_env`$rnorm <- gen_norm
 
-  enclos_env$input <- gsim_process(mclist, data, groups) %>% list2env(parent = enclos_env)
-  enclos_env$input$`_ref_stack` <- 0
-  enclos_env$input$`_i` <- 0
+  `_enclos_env`$input <- gsim_process(mclist, data, groups) %>%
+    list2env(parent = `_enclos_env`)
+
+  `_enclos_env`$input$`_ref_stack` <- 0
+  `_enclos_env`$input$`_i` <- 0
 
 
   fun <- function(x) {
@@ -43,7 +46,7 @@ gsim <- function(mclist, data = NULL, groups = NULL) {
 
     # If user passes a quoted "{", evaluate the quote to get the "{" object
     if (try(class(eval(x)), silent = TRUE)[1] == "{") {
-      beep(3)
+      ## beep(3)
       x <- eval(x) 
     }
      
@@ -51,7 +54,7 @@ gsim <- function(mclist, data = NULL, groups = NULL) {
     # quoted "{" objects, evaluate them sequentially, and return last
     # result
     if (class(x) == "call" && x[[1]] == "list") {
-      beep(5)
+      ## beep(5)
       args <- as.list(x[-1])
       is_curly <- vapply(args, function(arg)
         class(arg %>% as.character %>% get) == "{", logical(1))
@@ -67,14 +70,12 @@ gsim <- function(mclist, data = NULL, groups = NULL) {
 
     # When user passes a "{" list as argument, evaluate the
     # components sequentially and return last result
-    else if (class(x) == "{") {
-      ## beep(7)
+    else if (class(x) == "{")
       res <- eval_curly(x)
-    }
     
     # Could be a name or a function (such as assignment: `<-`)
     else if (is.language(x)) {
-      # beep(2)
+      beep(2)
       res <- eval_statement(x, last_statement = TRUE)
     }
 
@@ -82,15 +83,8 @@ gsim <- function(mclist, data = NULL, groups = NULL) {
     if (inherits(res, "AsIs"))
       class(res) <- setdiff(class(res), "AsIs")
 
-    # LHS do not get the attributes of RHS?
-    else if (!is.null(res)) {
-      res <-
-        if (is.seq_gs(res))
-          as.function(res)
-        else
-          res
-          ## as.data.frame(res)
-    }
+    else if (!is.null(res) && !is.reactive_fun(res))
+      res <- as.data.frame(res)
 
     invisible(res)
   }
@@ -102,9 +96,13 @@ gsim <- function(mclist, data = NULL, groups = NULL) {
 
 
 container_getter <- function(object) {
-  function() {
-    env <- container_env()
-    env[[object]]
+  function(element = NULL) {
+    obj <- container_env()[[object]]
+
+    if (is.null(element))
+      obj
+    else
+      obj[[match(element, obj)]]
   }
 }
 

@@ -228,12 +228,10 @@ mean.posterior <- function(gs) {
 }
 
 
-#' @export
 head.gsresult <- function(x, n = 6) {
   x[1:n, 1:5]
 }
 
-#' @export
 tail.gsresult <- function(x, n = 6) {
   if (inherits(x, "grouped_gs")) {
     l <- nrow(x[[1]])
@@ -245,7 +243,6 @@ tail.gsresult <- function(x, n = 6) {
 }
 
 
-#' @export
 head.posterior <- function(x, n = 6) {
   x <- x[[sample(seq_along(x), 1)]]
 
@@ -258,7 +255,6 @@ head.posterior <- function(x, n = 6) {
     x[seq(1, min(n, length(x)))]
 }
 
-#' @export
 tail.posterior <- function(x, n = 6) {
   l <- nrow(x)
   if (inherits(x, "grouped_gs")) {
@@ -269,9 +265,9 @@ tail.posterior <- function(x, n = 6) {
 }
 
 
-#' @export
 print.posterior <- function(x) {
   i <- sample(dim(x)[1], 1)
   x <- pick_sim(x, i)
-  print(x)
+  NextMethod()
 }
+

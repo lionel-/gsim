@@ -55,3 +55,14 @@ get_omega <- function(resid, sigma) {
   pmin(omega, 1)
 }
 
+
+#' @export
+row_vector <- function(x) {
+  rbind(c(x))
+}
+
+
+#' @export
+col_vector <- function(x) {
+  cbind(c(x))
+}

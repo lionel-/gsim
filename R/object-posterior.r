@@ -18,6 +18,7 @@ pick_sim <- function(x, sim) {
   x
 }
 
+
 # Arrays are virtually always NAM(2) objects, so using primitive
 # replacement functions would not result in gains anyway.
 `pick_sim<-` <- function(x, sim, value) {
@@ -40,23 +41,22 @@ perm_dims <- function(x) {
 # a new dimension to the right than to the left. So, we append to the
 # right then we permute the array.
 init_posterior <- function(x, nsims = NULL) {
-  if (is.posterior(x))
-    return(x)                           # How do we end up here?...
-
   if (is.null(nsims))
     nsims <- nsims()
 
   old_class <- setdiff(class(x), "matrix")
   n <- length(x)
-  param_dim <- dim(x)
+  dim <- dim(x)
 
-  if (is.null(param_dim))
-    param_dim <- length(x)
-  else if (last(param_dim) == 1)
-    param_dim <- param_dim[-length(param_dim)]
+  if (is.null(dim))
+    dim <- length(x)
+  else if (length(dim) == 1) # && dim == 1)
+    dim <- c(1, 1)
+  else if (last(dim) == 1)
+    dim <- dim[-length(dim)]
 
   x <- c(x, rep(NA, n * (nsims - 1)))
-  dim(x) <- c(param_dim, nsims)
+  dim(x) <- c(dim, nsims)
 
   structure(perm_dims(x), class = c("posterior", old_class))
 }
@@ -75,4 +75,24 @@ as.posterior <- function(x, nsims = NULL) {
       c(dims, nsims)
 
   structure(perm_dims(res), class = "posterior")
+}
+
+# unary_rbind a little trickier? because the additional single
+# element dimension is internal
+unary_cbind <- function(x) {
+  old <- dim(x)
+  dim(x) <- c(old[1], prod(old[-1]), 1)
+  x
+}
+
+`[.posterior` <- function(x, i, ...) {
+  x <- NextMethod(drop = FALSE)
+
+  # Drop first dimension, keeping the others
+  if (length(i) == 1)
+    dim(x) <- dim(x)[-1]
+  else
+    class(x) <- "posterior"
+
+  x
 }

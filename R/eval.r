@@ -1,55 +1,31 @@
 
 
-eval_in_input <- function(x) {
-  eval(x, input_env())
-}
-
-assign_in_input <- function(a, b) {
-  env <- container_env()
-  assign(a, b, envir = env$input)
-}
-
-check_in_input <- function(x, predicate) {
-  obj <- get_in_input(deparse(x))
-
-  if (predicate(obj))
-    x
-  else
-    NULL
-}
-
-
 call_args <- function(x) as.list(x)[-1]
 is_arg_call <- function(x) vapply(call_args(x), is.call, logical(1))
 
 is.empty <- function(x) inherits(x, "empty")
-is.assignment <- function(x) is.call(x) && identical(first(x), as.name("<-"))
+is.assignment <- function(x) is.call(x) && as.character(x[[1]]) == "<-"
 is.to_loop <- function(x) inherits(x, "to_loop")
+is.no_loop <- function(x) inherits(x, "no_loop")
+is.posterior_call <- function(x) inherits(x, "posterior_call")
 is.delayed <- function(x) inherits(x, "delayed")
-is.vectorized <- function(x) attr(x, "vectorized") %||% FALSE
+is.to_recycle <- function(x) inherits(x, "to_recycle")
 
 
 empty_posterior <- function(x) {
   structure(NULL, class = c("empty", "posterior"))
 }
 
-to_loop <- function(x, subclass = NULL, vectorized = NULL, ...) {
-  if (!is.null(vectorized) && !class(x) == "(")
-    x <- call("(", x)
-  structure(
-    x,
-    class = c("to_loop", subclass),
-    vectorized = vectorized,
-    ...
-  )
+to_loop <- function(x) {
+  structure(x, class = c("to_loop", "posterior_call"))
+}
+
+no_loop <- function(x, subclass = NULL) {
+  structure(x, class = c("no_loop", subclass))
 }
 
 delayed_pickup <- function(x) {
   structure(x, class = "delayed")
-}
-
-vectorized <- function(x) {
-  structure(x, vectorized = TRUE)
 }
 
 
@@ -64,9 +40,11 @@ find_input_names <- function(x) {
 
 find_reactive_args <- function(x, recursive = FALSE) {
   if (is.reactive(x))
-    attr(x, "input_names")
-  else if (is.name(x))
-    check_in_input(x, is.reactive)
+    input_names(x)
+  else if (any(is.reactive_lhs(x)))
+    input_names(reactive_lhs(as.character(x)))
+  ## else if (is.name(x))
+  ##   check_in_input(x, is.reactive)
   else if (is.call(x) && recursive)
     unlist(lapply(x, find_reactive_args, recursive = TRUE), use.names = FALSE)
   else
@@ -74,7 +52,7 @@ find_reactive_args <- function(x, recursive = FALSE) {
 }
 
 find_posterior_args <- function(x, recursive = FALSE) {
-  if (is.vectorized(x))
+  if (is.posterior_call(x) && !recursive)
     x
   else if (is.name(x))
     check_in_input(x, is.posterior)
@@ -101,123 +79,130 @@ eval_curly <- function(x) {
   eval_statement(last, last_statement = TRUE)
 }
 
+
+# If argument is a posterior object scheduled to be looped over,
+# return it as is. If it is an expression depending on reactive
+# inputs, mark the surrounding call as reactive.
+eval_args <- function(x) {
+  which_is_call <- which(c(FALSE, is_arg_call(x)))
+  inputs <- NULL
+
+  for (i in seq_along(x)[-1]) {
+    obj <-
+      if (i %in% which_is_call)
+        eval_substatement(x[[i]])
+      else
+        x[[i]]
+
+
+    if (!is.atomic(obj)) {
+      #todo: simplify to_recycle (only used for inputs)
+      if (is.input(obj))
+        obj <- to_recycle(obj)
+      else if (!(is.posterior_call(obj) || is.reactive(obj) || !(is.name(obj) &&  is.locked(obj)))) {
+        res <- eval_in_input(obj)
+        obj <- add_ref(res)
+      }
+
+      new_inputs <- 
+        if (is.reactive(obj))
+          input_names(obj)
+        else if (is.name(obj) && is.locked(obj)) {
+          reactive_lhs <- reactive_lhs()[[match(obj, reactive_lhs)]]
+          input_names(reactive_lhs)
+        }
+        else
+          NULL
+      inputs <- unique(c(inputs, new_inputs))
+    }
+
+    x[[i]] <- obj
+  }
+
+  if (is.null(inputs))
+    x
+  else
+    reactive(x, inputs)
+}
+
+
+# Looping over all simulations can be avoided in certain cases
+mark_looping <- function(x, n_post) {
+  fun <- as.character(first(x))
+  n <- length(x) - 1
+
+  if (fun %in% c("(", "{", "I"))
+    no_loop(x, subclass = "posterior_call")
+
+  # No looping for binary elementwise ops with _two posterior_ args
+  else if (n_post == 2 && fun %in% c("+", "-", "*", "/"))
+    no_loop(x, subclass = "posterior_call")
+
+  # Optimized unary cbind (useful to make column vectors)
+  else if (n == 1 && fun %in% c("cbind", "col_vector")) {
+    x[[1]] <- as.name("unary_cbind")
+    no_loop(x, subclass = "posterior_call")
+  }
+
+  else
+    to_loop(x)
+}
+
 eval_substatement <- function(x) {
-  ## browser(expr = getOption("debug_on"))
   if (any(is_arg_call(x)))
     x <- eval_args(x)
 
-  if (is.input(x))
+  # A name only gets to this point if it's the last statement
+  if (is.name(x))
+    ## delayed_pickup(x)
     stop()
 
-
-  # A name only gets to this point if it's the last statement
-  else if (is.name(x))
-    delayed_pickup(x)
-
   else if (is.call(x)) {
-    reactive_args <- compact(lapply(x[-1], find_reactive_args))
-    post_args <- compact(lapply(x[-1], find_posterior_args))
-
+    reactive_args <- unique(unlist(compact(lapply(x[-1], find_reactive_args))))
     n_reactive <- length(reactive_args)
-    n_posterior <- length(post_args)
+    n_posterior <- length(compact(lapply(x[-1], find_posterior_args)))
 
-    if (n_posterior > 0 || n_reactive > 0) {
-      res <-
-        if (n_posterior > 0) {
-          fun <- deparse(first(x))
-
-          if (fun %in% c("(", "{", "I"))
-            to_loop(x, vectorized = TRUE)
-
-          # No looping for binary elementwise ops with two posterior args
-          else if (n_posterior == 2 && fun %in% c("+", "-", "*", "/"))
-            to_loop(x, vectorized = TRUE)
-
-          else
-            to_loop(x)
-        }
-        else 
-          x
-
-      if (n_reactive > 0)
-        reactive(res, input_names = unique(unlist(reactive_args, use.names = FALSE)))
-
+    x <- 
+      if (n_posterior > 0)
+        mark_looping(x, n_posterior)
       else
-        res
-    }
+        x
 
-    else {
-      res <- eval_in_input(x)
-      clear_refs(x)
-      res
-    }
-  }
-}
-
-# Eval arguments of a call. If result is a to_loop expression, return
-# it. Otherwise, add the result to the ref stack and return a
-# reference to the result.
-
-# Results that do not rely on posterior objects do not need to be
-# computed in the posterior loops, so we eval them before to recycle
-# them.
-eval_args <- function(x) {
-  which_is_call <- which(c(FALSE, is_arg_call(x)))
-
-  for (i in which_is_call) {
-    obj <- eval_substatement(x[[i]])
-
-    x[i] <- 
-      if (is.to_loop(obj))
-        as.expression(obj)
-
-      else {
-        index <- add_ref(obj)
-        res <- make_ref_call(index)
-
-        if (is.input(obj))
-          res <- input(res)
-
-        as.expression(res)
-      }
+    # Happens when one of the arguments is a previous LHS reactive
+    if (n_reactive > 0 && !is.reactive(x))
+      reactive(x, reactive_args)
+    else
+      x
   }
 
-  x
+  else
+    stop()
 }
 
-# Returns to_loop rhs call if it relies on a posterior variable, NULL
-# otherwise
+
 eval_assignment <- function(lhs, rhs) {
-  if (is_locked(lhs))
-    stop(paste("Cannot reassign", sQuote(lhs), "because it is part of an interactive call"),
-      call. = FALSE)
+  if (is.locked(lhs))
+    stop(paste("Cannot reassign", sQuote(lhs), "because it is part of an
+      interactive call"), call. = FALSE)
 
   if (is.call(rhs))
     rhs <- eval_substatement(rhs)
 
-  rhs <- 
-    if (is.to_loop(rhs)) {
-      if (is.reactive(rhs)) {
-        add_to_reactive_stack(lhs, rhs)
-        lock(c(lhs, find_names(rhs)))
-        reactive("empty", input_names = attr(rhs, "input_names"), args = find_names(rhs))
-      }
-      else {
-        add_to_call_stack(lhs, rhs)
-        empty_posterior()
-      }
-    }
+  # Needed so that find_posterior_args will recognize posterior lhs
+  # when they are included as arguments in ulterior calls
+  if (is.posterior_call(rhs))
+    assign_in_input(lhs, empty_posterior())
 
-    else if (is.name(rhs))
-      get_in_input(deparse(rhs))
+  if (is.reactive(rhs)) {
+    lock(lhs, dependencies = find_names(rhs), inputs = input_names(rhs))
+    add_to_reactive_stack(lhs, rhs)
+  }
+  else
+    add_to_call_stack(lhs, rhs)
 
-    else
-      rhs
-
-  # will have to assign in process_call?
-  ## assign_in_input(lhs, rhs)
   NULL
 }
+
 
 eval_statement <- function(x, last_statement = FALSE) {
   if (is.assignment(x))
@@ -231,24 +216,25 @@ eval_statement <- function(x, last_statement = FALSE) {
       else
         eval_substatement(x)
 
-    if (is.to_loop(res))
-        add_to_call_stack("_last", rhs = res)
     if (is.reactive(res))
       add_to_reactive_stack("_last", rhs = res)
+    else
+      add_to_call_stack("_last", rhs = res)
 
-    # todo: what if reactive is not a posterior??
-    ## assign_in_input("_last", empty_posterior())
+    if (is.posterior_call(res))
+      assign_in_input("_last", empty_posterior())
 
-    process_stack(call_stack())
+    stack <- process_stack(call_stack())
     clear_call_stack()
     clear_refs(stack)
 
-    if (is.vectorized(res))
+    if (is.reactive(res))
+      make_reactive_function(res)
+    else if (is.no_loop(res))
       eval_in_input(res)
     else if (is.delayed(res))
-      get_in_input(deparse(res))
-    else if (is.reactive(res))
-      make_reactive_function(res)
+      ## get_in_input(deparse(res))
+      stop()
     else if (length(stack) > 0)
       get_in_input("_last")
     else
@@ -258,52 +244,4 @@ eval_statement <- function(x, last_statement = FALSE) {
   # If not assignment and not last statement, ignore the statement
   else
     NULL
-}
-
-
-## problem: atm there are both posterior and non-posterior statements
-## in reactive_stack ...
-
-## simplest design: save all calls in stacks and figure out in
-## `process_stack` which are posterior and which are not.
-
-make_reactive_function <- function(last_call) {
-  browser(expr = getOption("debug_on"))
-  stack <- reactive_stack()
-  inputs <- attr(last(stack), "input_names")
-
-  # Keep only relevant calls
-  stack <- Filter(function(x) attr(x, "input_names") %in% inputs, stack)
-
-  fun <- function() {
-    process_stack(stack)
-    get_in_input("_last")
-  }
-
-  args <- do.call("pairlist", vector("list", length(inputs)))
-  names(args) <- inputs
-  formals(fun) <- args
-}
-
-
-process_stack <- function(stack) {
-  browser(expr = getOption("debug_on"))
-  if (length(stack) > 0) {
-    # Perf note: relatively expensive
-    stack <- lapply(stack, process_call)
-
-    # Wrap each non-vectorized call in a 'for' loop over sims. Wrap
-    # vectorized call in a "{" ending with NULL (to avoid
-    # unnecessary return values)
-    stack <- lapply(stack, function(x) {
-      if (is.vectorized(x))
-        call("{", x, quote(NULL))
-      else
-        call("{", x) %>% call("for", quote(`_i`), bquote(seq(1, .(nsims()))), .)
-    })
-
-    lapply(stack, eval_in_input)
-  }
-
-  NULL
 }

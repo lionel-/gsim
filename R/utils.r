@@ -124,52 +124,31 @@ set_dimnames <- function(x, names) {
   x
 }
 
-set_last_dimnames <- function(x, nm) {
-  len <- dim_length(x)
-  dimnames <- vector("list", len)
-
-  if (is.list(nm)) {
-    dimnames[len] <- nm
-    names(dimnames)[len] <- names(nm)
-  }
-  else
-    dimnames[[len]] <- nm
-
-  dimnames(x) <- dimnames
-  x
-}
-
 first <- function(x) x[[1]]
+
 last <- function(x) x[[length(x)]]
 `first<-` <- function(x, value) {
   x[[1]] <- value
   x
 }
+
 `last<-` <- function(x, value) {
   x[[length(x)]] <- value
   x
 }
+
 penultimate <- function(x) x[[min(length(x)-1, 1)]]
 
+dim_length <- function(x) length(dim(x))
 
-subset_along <- function(object, index) {
-  for (i in seq_along(index))
-    object <- `[[`(object, index[i])
-  object
+
+`%||%` <- function(a, b) {
+  if (!is.null(a) && !is.na(a) && length(a) > 0)
+    a
+  else
+    b
 }
 
-`subset_along<-` <- function(object, index, value) {
-  temp <- vector("list", length(index) + 1)
-  temp[[1]] <- object
-
-  for (i in seq_along(index))
-    temp[[i+1]] <- `[[`(temp[[i]], index[i])
-  last(temp) <- value
-
-  for (i in rev(seq_along(index)))
-    temp[[i]][[index[i]]] <- temp[[i+1]]
-  temp[[1]]
-}
 
 
 compact <- function(list, recursive = FALSE) {
@@ -187,19 +166,15 @@ compact <- function(list, recursive = FALSE) {
     list
 }
 
-flatten <- function(list) {
-  recurser <- function(x) {
-    if (is.list(x))
-      lapply(x, recurser)
 
-    else {
-      env <- .dyn_get("res")$env
-      env$res <- c(res, list(x))
-    }
-  }
+isFALSE <- function(x) identical(FALSE, x)
 
-  res <- list()
-  recurser(list)
-  res
+
+unlist2 <- function(x, recursive = TRUE) {
+  .Internal(unlist(x, recursive, FALSE))
 }
 
+# `vapply` with logical(1) outputs (p stands for predictate)
+papply <- function(X, FUN, ..., USE.NAMES = TRUE) {
+  vapply(X, FUN, FUN.VALUE = logical(1), ..., USE.NAMES = USE.NAMES)
+}
