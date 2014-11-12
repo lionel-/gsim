@@ -6,17 +6,17 @@ lock <- function(lhs, dependencies, inputs) {
 
   dependencies <- dependencies[dependencies %in% reactive_lhs()]
 
-  env <- container_env()
-  env$`_reactive_lhs` <- unique(c(env$`_reactive_lhs`, list(new)))
-  env$`_locked` <- unique(c(env$`_locked`, lhs, dependencies))
+  context <- context()
+  context$reactive_lhs <- unique(c(context$reactive_lhs, list(new)))
+  context$locked <- unique(c(context$locked, lhs, dependencies))
 
   NULL
 }
 
 is.locked <- function(var) {
   var <- as.character(var)
-  env <- input_env()
-  var %in% env$`_locked`
+  context <- context()
+  var %in% context$locked
 }
 
 is.reactive_lhs <- function(lhs) {

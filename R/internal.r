@@ -21,42 +21,50 @@ dyn_get_ <- function(obj) {
     env <- parent.frame(n)
   }
 
-  stop(paste("Cannot find", obj))
+  stop(paste("dyn_get cannot find", sQuote(obj)), call. = FALSE)
 }
 
 
 container_env <- function() {
-  container_env <- dyn_get_("_gsim_container")$env
-  env <- parent.env(container_env)$`_enclos_env`
-  env
+  browser(expr = getOption("debug_on"))
+  env <- dyn_get_("_anchor")$env
+  parent.env(env)
 }
 
-input_env <- function() {
+context <- function(object = NULL) {
   env <- container_env()
-  env$`_input`
+  if (is.null(object))
+    env$context
+  else
+    env$context$object
 }
 
-metadata_getter <- function(obj) {
-  function() {
-    env <- container_env()
-    get(obj, envir = env)
-  }
+storage <- function(object = NULL) {
+  env <- container_env()
+  if (is.null(object))
+    env$storage
+  else
+    env$storage[[object]]
 }
 
-nsims <- metadata_getter("_nsims")
+## nsims <- function() {
+##   context()$nsims
+## }
 
 
-eval_in_input <- function(x) {
-  eval(x, input_env())
+eval_in_storage <- function(x) {
+  context <- list2env(context(), parent = asNamespace("gsim"))
+  eval(x, storage(), context)
 }
 
-assign_in_input <- function(a, b) {
-  env <- input_env()
-  assign(a, b, envir = env)
+assign_in_storage <- function(object, value) {
+  env <- container_env()
+  env$storage[[object]] <- value
+  NULL
 }
 
-check_in_input <- function(x, predicate) {
-  obj <- get_in_input(deparse(x))
+check_in_storage <- function(x, predicate) {
+  obj <- get_in_storage(deparse(x))
 
   if (predicate(obj))
     x
@@ -64,22 +72,8 @@ check_in_input <- function(x, predicate) {
     NULL
 }
 
-get_in_input <- function(what) {
-  get(what, envir = input_env())
-}
-
-
-as.gsarray <- function(x) {
-  if (is.array(x))
-    x
-  else {
-    nm <- names(x)
-    ind <- seq(0, length(x))
-    x <- array(x, c(length(x), 1))
-    attr(x, "blocks_names") <- nm
-    attr(x, "blocks_indices") <- ind
-    x
-  }
+get_in_storage <- function(what) {
+  storage()[[what]]
 }
 
 

@@ -26,7 +26,7 @@ no_loop <- function(x, subclass = NULL) {
 
 find_input_names <- function(x) {
   if (is.name(x))
-    check_in_input(x, is.input)
+    check_in_storage(x, is.input)
   else if (is.call(x))
     unlist(lapply(x, find_input_names), use.names = FALSE)
   else
@@ -39,7 +39,7 @@ find_reactive_args <- function(x, recursive = FALSE) {
   else if (any(is.reactive_lhs(x)))
     input_names(reactive_lhs(as.character(x)))
   ## else if (is.name(x))
-  ##   check_in_input(x, is.reactive)
+  ##   check_in_storage(x, is.reactive)
   else if (is.call(x) && recursive)
     unlist(lapply(x, find_reactive_args, recursive = TRUE), use.names = FALSE)
   else
@@ -50,7 +50,7 @@ find_posterior_args <- function(x, recursive = FALSE) {
   if (is.posterior_call(x) && !recursive)
     x
   else if (is.name(x))
-    check_in_input(x, is.posterior)
+    check_in_storage(x, is.posterior)
   else if (is.call(x) && recursive)
     unlist(lapply(x, find_posterior_args, recursive = TRUE), use.names = FALSE)
   else
@@ -67,11 +67,12 @@ find_names <- function(x) {
 }
 
 
-eval_curly <- function(x) {
+eval_curly <- function(x, enclos) {
   others <- x[seq(2, length(x) - 1)]
   last <- x[[length(x)]]
-  lapply(others, eval_statement)
-  eval_statement(last, last_statement = TRUE)
+  for (i in seq_along(others))
+    enclos <- eval_statement(others[[i]], enclos)
+  eval_statement(last, enclos, last_statement = TRUE)
 }
 
 
@@ -95,7 +96,7 @@ eval_args <- function(x) {
       if (is.input(obj))
         obj <- to_recycle(obj)
       else if (!(is.posterior_call(obj) || is.reactive(obj) || !(is.name(obj) &&  is.locked(obj)))) {
-        res <- eval_in_input(obj)
+        res <- eval_in_storage(obj)
         obj <- add_ref(res)
       }
 
@@ -186,7 +187,7 @@ eval_assignment <- function(lhs, rhs) {
   # Needed so that find_posterior_args will recognize posterior lhs
   # when they are included as arguments in ulterior calls
   if (is.posterior_call(rhs))
-    assign_in_input(lhs, empty_posterior())
+    assign_in_storage(lhs, empty_posterior())
 
   if (is.reactive(rhs)) {
     lock(lhs, dependencies = find_names(rhs), inputs = input_names(rhs))
@@ -210,7 +211,6 @@ eval_statement <- function(x, last_statement = FALSE) {
         NULL
       else
         eval_substatement(x)
-    browser(expr = getOption("debug_on"))
 
     if (is.reactive(res))
       add_to_reactive_stack("_last", rhs = res)
@@ -218,7 +218,7 @@ eval_statement <- function(x, last_statement = FALSE) {
       add_to_call_stack("_last", rhs = res)
 
     if (is.posterior_call(res))
-      assign_in_input("_last", empty_posterior())
+      assign_in_storage("_last", empty_posterior())
 
     stack <- process_stack(call_stack())
     clear_call_stack()
@@ -227,10 +227,9 @@ eval_statement <- function(x, last_statement = FALSE) {
     if (is.reactive(res))
       make_reactive_function(res)
     else if (is.no_loop(res))
-      eval_in_input(res)
-      stop("ha")
+      eval_in_storage(res)
     else if (length(stack) > 0)
-      get_in_input("_last")
+      get_in_storage("_last")
     else
       stop("bah")
   }

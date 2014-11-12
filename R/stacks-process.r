@@ -7,16 +7,16 @@ wrap_posterior <- function(x, dims) {
 }
 
 eval_first <- function(expr) {
-  old <- get_in_input("_i")
-  assign_in_input("_i", 1)
-  eval_in_input(expr)
-  assign_in_input("_i", old)
+  old <- get_in_storage("_i")
+  assign_in_storage("_i", 1)
+  eval_in_storage(expr)
+  assign_in_storage("_i", old)
   NULL
 }
 
 
 process_name <- function(x) {
-  obj <- get_in_input(as.character(x))
+  obj <- get_in_storage(as.character(x))
 
   if (is.posterior(obj))
     wrap_posterior(x, dim(obj))
@@ -33,7 +33,7 @@ process_call <- function(x, single_sim = FALSE) {
     if (single_sim)
       function(x) {
         is.posterior_call(x) ||
-          (is.name(x) && is.posterior(get_in_input(as.character(x))))
+          (is.name(x) && is.posterior(get_in_storage(as.character(x))))
       }
     else
       is.to_loop
@@ -48,7 +48,7 @@ process_call <- function(x, single_sim = FALSE) {
     is_posterior_call <- papply(x[-1], is.posterior_call)
 
     x[-1][is_posterior_call] <- lapply(x[-1][is_posterior_call], function(item) {
-      obj <- eval_in_input(item) %>% init_posterior
+      obj <- eval_in_storage(item) %>% init_posterior
       wrap_posterior(item, dim(obj))
     })
 
@@ -86,10 +86,10 @@ process_assignment <- function(x, single_sim = FALSE) {
     rhs <- process_call(rhs, single_sim = single_sim)
 
     # Need to get dimensions of rhs to construct the lhs subsetting
-    rhs_obj <- eval_in_input(rhs) %>% init_posterior
+    rhs_obj <- eval_in_storage(rhs) %>% init_posterior
 
     # Is this still needed? Now we evaluate sequentially
-    assign_in_input(as.character(lhs), rhs_obj)
+    assign_in_storage(as.character(lhs), rhs_obj)
 
     lhs <- wrap_posterior(lhs, dim(rhs_obj))
     call("<-", lhs, rhs)
@@ -119,7 +119,7 @@ process_stack <- function(stack, single_sim = FALSE) {
       else
         call("{", expr) %>% call("for", quote(`_i`), bquote(seq(1, .(nsims()))), .)
 
-    eval_in_input(expr)
+    eval_in_storage(expr)
     stack[[i]] <- expr
   }
 
@@ -169,7 +169,7 @@ make_reactive_function <- function(last_call) {
     if (!is.function(out)) {
       if (out == "random")
         out <- sample(seq_len(nsims()), 1)
-      assign_in_input("_i", out)
+      assign_in_storage("_i", out)
     }
 
     compute <- function(...) {
@@ -177,7 +177,7 @@ make_reactive_function <- function(last_call) {
       dot_names <- names(dots)
 
       Map(function(input, value) {
-        assign_in_input(paste0("_input_ref_", input), value)
+        assign_in_storage(paste0("_input_ref_", input), value)
       }, input = dot_names, value = dots)
 
 
@@ -185,18 +185,18 @@ make_reactive_function <- function(last_call) {
         if (is.null(processed_stack))
           processed_stack <<- process_stack(stack)
         else
-          lapply(processed_stack, eval_in_input)
+          lapply(processed_stack, eval_in_storage)
 
-        get_in_input("_last") %% out
+        get_in_storage("_last") %% out
       }
 
       else {
         if (is.null(processed_stack_single))
           processed_stack_single <<- process_stack(stack, single_sim = TRUE)
         else 
-          lapply(processed_stack_single, eval_in_input)
+          lapply(processed_stack_single, eval_in_storage)
 
-        res <- get_in_input("_last")
+        res <- get_in_storage("_last")
         res <- pick_sim(res, out)
 
         if (drop)

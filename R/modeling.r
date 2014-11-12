@@ -103,3 +103,16 @@ rowVars <- function(a) {
   c <- ncol(a)
   .rowMeans(((a - matrix(.rowMeans(a, n, c), nrow = n, ncol = c, byrow = TRUE))^2), n, c) * n / (n - 1)
 }
+
+
+# TODO: still useful?
+rbind_cols <- function(object) {
+  if (!dim_length(object) == 2)
+    stop("Can only rbind the cols of a matrix")
+  if (dim(object)[2] == 1)
+    return(object)
+
+  ncols <- ncol(object)
+  nrows <- nrow(object)
+  array(object, c(nrows * ncols, 1))
+}

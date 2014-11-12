@@ -23,13 +23,8 @@ add_to_reactive_stack <- function(lhs, rhs) {
 }
 
 add_to_call_stack <- function(lhs, rhs) {
-  browser(expr = getOption("debug_on"))
   call <- call("<-", as.name(lhs), rhs)
-
-  env <- container_env()
-  env$`_call_stack` <- c(env$`_call_stack`, call)
-
-  NULL
+  c(container_env()$`_call_stack`, call)
 }
 
 clear_call_stack <- function() {

@@ -9,29 +9,23 @@
 gsim <- function(mclist, ...) {
   if (!is.mclist(mclist))
     mclist <- as.mclist(mclist)
-  nsims <- dim(mclist[[1]])[1]
 
-  # To test if we can go with lists.
-  `_enclos_env` <- new.env()
-  ## `_enclos_env` <- new.env(parent = asNamespace("gsim"))
+  context <- list()
+  context$nsims <- dim(mclist[[1]])[1]
+  context$call_stack <- list()
+  context$reactive_stack <- list()
+  context$reactive_lhs <- list()
+  context$locked <- NULL
 
-  `_enclos_env`$`_nsims` <- nsims
-  `_enclos_env`$`_call_stack` <- list()
-  `_enclos_env`$`_reactive_stack` <- list()
-  `_enclos_env`$`_reactive_lhs` <- list()
-  `_enclos_env`$`_locked` <- NULL
+  ## `_enclos`$rnorm <- gen_norm
 
-  `_enclos_env`$rnorm <- gen_norm
-
-  `_enclos_env`$`_input` <- input_process(mclist, ...) %>%
-    list2env(parent = `_enclos_env`)
-
-  `_enclos_env`$`_input`$`_ref_stack` <- 0
-  `_enclos_env`$`_input`$`_i` <- 1
+  storage <- init_storage(mclist, ...)
+  storage$`_ref_stack` <- 0
+  storage$`_i` <- 1
 
 
   fun <- function(x) {
-    `_gsim_container` <- TRUE
+    `_anchor` <- TRUE
     x <- substitute(x)
 
     # If quoted "{", evaluate the quote to get the "{" object
@@ -96,30 +90,28 @@ container_getter <- function(object) {
 
 #' @export
 summary.gsim_fun <- function(x) {
-  env <- environment(x)$`_enclos_env`
-  input <- as.list(env$`_input`)
-  input$`_i` <- NULL
-  input$`_ref_stack` <- NULL
+  storage <- environment(x)$storage
+  storage$`_i` <- NULL
+  storage$`_ref_stack` <- NULL
 
-  lapply(input, head)
+  lapply(storage, head)
 }
 
 #' @export
 print.gsim_fun <- function(x) {
-  env <- environment(x)$`_enclos_env`
-  input <- as.list(env$`_input`)
-  input$`_i` <- NULL
-  input$`_ref_stack` <- NULL
+  storage <- environment(x)$storage
+  storage$`_i` <- NULL
+  storage$`_ref_stack` <- NULL
 
-  is_posterior <- vapply(input, is.posterior, logical(1))
+  is_posterior <- vapply(storage, is.posterior, logical(1))
   n_posterior <- sum(is_posterior)
-  n_data <- length(input) - n_posterior
+  n_data <- length(storage) - n_posterior
 
   cat("gsim container with", n_data, "variables and", n_posterior, "parameters\n")
 }
 
 
-input_process <- function(mclist, ...) {
+init_storage <- function(mclist, ...) {
   dots <- list(...)
   data <- 
     if (length(dots) == 0)
@@ -129,9 +121,6 @@ input_process <- function(mclist, ...) {
     else
       stop("Multiple data inputs not implemented yet")
 
-  mclist <- Map(gs, mclist, class = "posterior")
-  if (!is.null(data))
-    data <- Map(gs, data, class = "data")
-
+  mclist <- Map(posterior, mclist)
   c(data, mclist)
 }
