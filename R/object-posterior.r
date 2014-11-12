@@ -1,19 +1,24 @@
 
 # 0.5s for producing 4000 indexes for 4 variables (16e3 iterations)
 pick_sim_index <- function(x, sim) {
-  param_dim <- dim(x)[-1]
-  param_length <- prod(param_dim)
-  nsims <- dim(x)[1]
+  dims <- dim(x)
+  if (is.null(dims) || length(dims) == 1)
+    sim
+  else {
+    param_dim <- dims[-1]
+    param_length <- prod(param_dim)
+    nsims <- dims[1]
 
-  to <- (param_length - 1) * nsims + sim
-  seq(from = sim, to, by = nsims)
+    to <- (param_length - 1) * nsims + sim
+    seq(from = sim, to, by = nsims)
+  }
 }
 
 
 pick_sim <- function(x, sim) {
   index <- pick_sim_index(x, sim)
-  param_dim <- dim(x)[-1]
-  x <- x[index]
+  param_dim <- dim(x)[-1] %||% 1
+  x <- unclass(x)[index]
   dim(x) <- param_dim
   x
 }
@@ -41,6 +46,9 @@ perm_dims <- function(x) {
 # a new dimension to the right than to the left. So, we append to the
 # right then we permute the array.
 init_posterior <- function(x, nsims = NULL) {
+  if (is.posterior(x))
+    return(x)
+
   if (is.null(nsims))
     nsims <- nsims()
 
@@ -77,22 +85,44 @@ as.posterior <- function(x, nsims = NULL) {
   structure(perm_dims(res), class = "posterior")
 }
 
-# unary_rbind a little trickier? because the additional single
-# element dimension is internal
+# unary_rbind a little trickier? because the additional single-element
+# dimension is internal
 unary_cbind <- function(x) {
   old <- dim(x)
   dim(x) <- c(old[1], prod(old[-1]), 1)
   x
 }
 
+
 `[.posterior` <- function(x, i, ...) {
   x <- NextMethod(drop = FALSE)
 
   # Drop first dimension, keeping the others
   if (length(i) == 1)
-    dim(x) <- dim(x)[-1]
+    dim(x) <- dim(x)[-1] %||% 1
   else
     class(x) <- "posterior"
 
   x
+}
+
+
+# Convenience functions for debugging
+print.posterior <- function(x) {
+  i <- sample(dim(x)[1], 1)
+  x <- pick_sim(x, i)
+  NextMethod()
+}
+
+head.posterior <- function(x, n = 6) {
+  sims_n <- dim(x)[1] %||% length(x)
+  i <- sample(sims_n, 1)
+  x <- pick_sim(x, i)
+  NextMethod()
+}
+
+tail.posterior <- function(x, n = 6) {
+  i <- sample(dim(x)[1], 1)
+  x <- pick_sim(x, i)
+  NextMethod()
 }

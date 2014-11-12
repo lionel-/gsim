@@ -8,7 +8,6 @@ is.assignment <- function(x) is.call(x) && as.character(x[[1]]) == "<-"
 is.to_loop <- function(x) inherits(x, "to_loop")
 is.no_loop <- function(x) inherits(x, "no_loop")
 is.posterior_call <- function(x) inherits(x, "posterior_call")
-is.delayed <- function(x) inherits(x, "delayed")
 is.to_recycle <- function(x) inherits(x, "to_recycle")
 
 
@@ -22,10 +21,6 @@ to_loop <- function(x) {
 
 no_loop <- function(x, subclass = NULL) {
   structure(x, class = c("no_loop", subclass))
-}
-
-delayed_pickup <- function(x) {
-  structure(x, class = "delayed")
 }
 
 
@@ -155,7 +150,7 @@ eval_substatement <- function(x) {
   # A name only gets to this point if it's the last statement
   if (is.name(x))
     ## delayed_pickup(x)
-    stop()
+    stop("hey")
 
   else if (is.call(x)) {
     reactive_args <- unique(unlist(compact(lapply(x[-1], find_reactive_args))))
@@ -176,7 +171,7 @@ eval_substatement <- function(x) {
   }
 
   else
-    stop()
+    stop("ho")
 }
 
 
@@ -215,6 +210,7 @@ eval_statement <- function(x, last_statement = FALSE) {
         NULL
       else
         eval_substatement(x)
+    browser(expr = getOption("debug_on"))
 
     if (is.reactive(res))
       add_to_reactive_stack("_last", rhs = res)
@@ -232,13 +228,11 @@ eval_statement <- function(x, last_statement = FALSE) {
       make_reactive_function(res)
     else if (is.no_loop(res))
       eval_in_input(res)
-    else if (is.delayed(res))
-      ## get_in_input(deparse(res))
-      stop()
+      stop("ha")
     else if (length(stack) > 0)
       get_in_input("_last")
     else
-      stop()
+      stop("bah")
   }
 
   # If not assignment and not last statement, ignore the statement

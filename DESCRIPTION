@@ -1,5 +1,5 @@
 Package: gsim
-Title: Operators for simulation objects
+Title: Gorgeous manipulations of (posterior) simulations
 Version: 0.1
 Author: Lionel Henry, <lionel.hry@gmail.com> [aut,cre]
 Description: What the package does (paragraph)
@@ -11,5 +11,8 @@ Imports:
     dplyr (>= 0.2),
     stringr (>= 0.6.2)
 Suggests:
-    knitr
+    knitr,
+    rstan,
+    testthat,
+    RCurl
 VignetteBuilder: knitr

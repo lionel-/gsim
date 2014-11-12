@@ -8,80 +8,10 @@ vpluck <- function(x, i, type = NULL) {
   vapply(x, `[[`, i, FUN.VALUE = type)
 }
 
-indices <- function(gs) attr(gs, "indices", exact = TRUE)
-
-labels <- function(gs) attr(gs, "labels", exact = TRUE)
-
-
-## Faster than apply because uses colMeans
-colVars <- function(a) {
-  class(a) <- "matrix"
-  n <- nrow(a)
-  c <- ncol(a)
-  .colMeans(((a - matrix(.colMeans(a, n, c), nrow = n, ncol = c, byrow = TRUE))^2), n, c) * n / (n - 1)
-}
-
-rowVars <- function(a) {
-  class(a) <- "matrix"                   # Circumvents a bug
-  n <- nrow(a)
-  c <- ncol(a)
-  .rowMeans(((a - matrix(.rowMeans(a, n, c), nrow = n, ncol = c, byrow = TRUE))^2), n, c) * n / (n - 1)
-}
-
 
 utils <- list()
 utils$class <- function(x) cat(class(x), "\n")
 utils$str <- function(x) cat(str(x), "\n")
-
-
-group <- function(gs) attr(gs, "group")
-
-group_by <- function(gs, group) {
-  ## browser(expr = getOption("debug_on"))
-  ## todo: make sure index is always from 1 to # levels
-  ## as.factor is kind of a quick hack?
-  group <- deparse(substitute(group))
-  group_var <- get(group, envir = parent.frame())
-  index <- as.factor(group_var) %>% as.numeric
-  index_seq <- seq_len(get_n())
-
-  indices <- lapply(unique(index), function(group) {
-    index_seq[index == group]
-  })
-  attr(gs, "indices") <- indices
-
-  attr(gs, "group") <- group
-  gs <- set_gsim_class(gs, gsim_class(gs), grouped = TRUE)
-
-  ## todo: next line also a hack
-  attr(gs, "labels") <- unique(group_var)
-
-  gs
-}
-
-gsim_group <- function(data, groups, type) {
-  names_by_group <- lapply(groups, "[[", type)
-
-  get_group <- function(x) {
-    res <- NULL
-    for (group in names(names_by_group)) {
-      temp <- if (x %in% names_by_group[[group]]) group else NULL
-      res <- c(res, temp)
-    }
-    assert_that(is.null(res) || length(res) == 1)
-    res
-  }
-
-  lapply(names(data), get_group)
-}
-
-
-gsim_dim <- function(gs) {
-  if (is.data(gs))
-    dim(gs)
-  else if (is.posterior(gs))
-    dim(first(gs))
-}
 
 
 set_class <- function(x, ..., append = FALSE) {
@@ -95,16 +25,6 @@ set_class <- function(x, ..., append = FALSE) {
   x
 }
 
-
-make_default_names <- function(n) {
-  suffix <-
-    if (n > 1)
-      c("", seq_len(n)[-1])
-    else
-      ""
-  paste0("gs", suffix)
-}
-
 set_attr <- function(x, attribute, value) {
   attr(x, attribute) <- value
   x
@@ -116,20 +36,22 @@ set_dim <- function(x, dims) {
 }
 
 set_dimnames <- function(x, names) {
-  ## dots <- dots(...) %>%
-  ##   vapply(identity, character(1))
-  ## names <- vector("list", length(dots)) %>%
-  ##   set_names(dots)
   dimnames(x) <- names
   x
 }
 
-first <- function(x) x[[1]]
 
-last <- function(x) x[[length(x)]]
+first <- function(x) {
+  x[[1]]
+}
+
 `first<-` <- function(x, value) {
   x[[1]] <- value
   x
+}
+
+last <- function(x) {
+  x[[length(x)]]
 }
 
 `last<-` <- function(x, value) {
@@ -137,19 +59,16 @@ last <- function(x) x[[length(x)]]
   x
 }
 
-penultimate <- function(x) x[[min(length(x)-1, 1)]]
-
-dim_length <- function(x) length(dim(x))
-
+dim_length <- function(x) {
+  length(dim(x)) 
+}
 
 `%||%` <- function(a, b) {
-  if (!is.null(a) && !is.na(a) && length(a) > 0)
+  if (!is.null(a) && length(a) > 0)
     a
   else
     b
 }
-
-
 
 compact <- function(list, recursive = FALSE) {
   list <- Filter(Negate(is.null), list)
@@ -166,9 +85,9 @@ compact <- function(list, recursive = FALSE) {
     list
 }
 
-
-isFALSE <- function(x) identical(FALSE, x)
-
+isFALSE <- function(x) {
+  identical(FALSE, x) 
+}
 
 unlist2 <- function(x, recursive = TRUE) {
   .Internal(unlist(x, recursive, FALSE))
@@ -177,4 +96,10 @@ unlist2 <- function(x, recursive = TRUE) {
 # `vapply` with logical(1) outputs (p stands for predictate)
 papply <- function(X, FUN, ..., USE.NAMES = TRUE) {
   vapply(X, FUN, FUN.VALUE = logical(1), ..., USE.NAMES = USE.NAMES)
+}
+
+stopper <- function(x) {
+  function() {
+    stop(x, call. = FALSE)
+  }
 }

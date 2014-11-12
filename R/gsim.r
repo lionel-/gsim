@@ -2,57 +2,45 @@
 #'
 #' @name gsim
 #' @docType package
-#' @import dplyr tidyr stringr ensurer lazyeval
-
+#' @importFrom magrittr %>% %$%
+# Note, maybe @rdname to document unexported functions?
 
 #' @export
-gsim <- function(mclist, data = NULL, groups = NULL) {
+gsim <- function(mclist, ...) {
   if (!is.mclist(mclist))
     mclist <- as.mclist(mclist)
   nsims <- dim(mclist[[1]])[1]
 
-  `_enclos_env` <- new.env(parent = asNamespace("gsim"))
+  # To test if we can go with lists.
+  `_enclos_env` <- new.env()
+  ## `_enclos_env` <- new.env(parent = asNamespace("gsim"))
 
-  `_enclos_env`$`_n` <- nrow(data)
   `_enclos_env`$`_nsims` <- nsims
   `_enclos_env`$`_call_stack` <- list()
   `_enclos_env`$`_reactive_stack` <- list()
   `_enclos_env`$`_reactive_lhs` <- list()
   `_enclos_env`$`_locked` <- NULL
 
-  `_enclos_env`$ones <- ones_
   `_enclos_env`$rnorm <- gen_norm
 
-  `_enclos_env`$input <- gsim_process(mclist, data, groups) %>%
+  `_enclos_env`$`_input` <- input_process(mclist, ...) %>%
     list2env(parent = `_enclos_env`)
 
-  `_enclos_env`$input$`_ref_stack` <- 0
-  `_enclos_env`$input$`_i` <- 0
+  `_enclos_env`$`_input`$`_ref_stack` <- 0
+  `_enclos_env`$`_input`$`_i` <- 1
 
 
   fun <- function(x) {
     `_gsim_container` <- TRUE
     x <- substitute(x)
 
-
-    # When passed a name, it is evaluated in globenv. Need to
-    # substitute it and evaluate it in env$input.
-
-    # Then, should only accept quotes and "{" objects. All other
-    # things should be evalled in env$input. Because user may have two
-    # objects identically named in the global env and env$input. We
-    # want to operate only on the object located in env$input.
-
-
-    # If user passes a quoted "{", evaluate the quote to get the "{" object
-    if (try(class(eval(x)), silent = TRUE)[1] == "{") {
-      ## beep(3)
+    # If quoted "{", evaluate the quote to get the "{" object
+    if (try(class(eval(x)), silent = TRUE)[1] == "{")
       x <- eval(x) 
-    }
+
      
-    # When user passes a list of names, make sure the names represent
-    # quoted "{" objects, evaluate them sequentially, and return last
-    # result
+    # If list of names, make sure the names represent quoted "{"
+    # objects, evaluate them sequentially, and return last result
     if (class(x) == "call" && x[[1]] == "list") {
       ## beep(5)
       args <- as.list(x[-1])
@@ -65,7 +53,6 @@ gsim <- function(mclist, data = NULL, groups = NULL) {
         eval_curly(curly)
       })
       res <- res[[length(res)]]
-
     }
 
     # When user passes a "{" list as argument, evaluate the
@@ -74,15 +61,15 @@ gsim <- function(mclist, data = NULL, groups = NULL) {
       res <- eval_curly(x)
     
     # Could be a name or a function (such as assignment: `<-`)
-    else if (is.language(x)) {
-      beep(2)
+    else if (is.language(x))
       res <- eval_statement(x, last_statement = TRUE)
-    }
+
+    else
+      stop("Unrecognized input", call. = FALSE)
 
 
     if (inherits(res, "AsIs"))
       class(res) <- setdiff(class(res), "AsIs")
-
     else if (!is.null(res) && !is.reactive_fun(res))
       res <- as.data.frame(res)
 
@@ -109,16 +96,20 @@ container_getter <- function(object) {
 
 #' @export
 summary.gsim_fun <- function(x) {
-  env <- environment(x)$enclos_env
-  input <- as.list(env$input)
+  env <- environment(x)$`_enclos_env`
+  input <- as.list(env$`_input`)
+  input$`_i` <- NULL
+  input$`_ref_stack` <- NULL
 
   lapply(input, head)
 }
 
 #' @export
 print.gsim_fun <- function(x) {
-  env <- environment(x)$enclos_env
-  input <- as.list(env$input)
+  env <- environment(x)$`_enclos_env`
+  input <- as.list(env$`_input`)
+  input$`_i` <- NULL
+  input$`_ref_stack` <- NULL
 
   is_posterior <- vapply(input, is.posterior, logical(1))
   n_posterior <- sum(is_posterior)
@@ -127,3 +118,20 @@ print.gsim_fun <- function(x) {
   cat("gsim container with", n_data, "variables and", n_posterior, "parameters\n")
 }
 
+
+input_process <- function(mclist, ...) {
+  dots <- list(...)
+  data <- 
+    if (length(dots) == 0)
+      NULL
+    else if (length(dots) == 1)
+      dots[[1]]
+    else
+      stop("Multiple data inputs not implemented yet")
+
+  mclist <- Map(gs, mclist, class = "posterior")
+  if (!is.null(data))
+    data <- Map(gs, data, class = "data")
+
+  c(data, mclist)
+}

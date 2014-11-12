@@ -1,20 +1,45 @@
 
 #' @export
 intercept <- function(n = NULL) {
-  if (is.null(n))
-    n <- get_n()
+  if (is.null(n)) {
+    is.name2 <- function(x) {
+      is.name(x) || (is.call(x) && identical(x[[1]], as.name("$")))
+    }
+    is.call2 <- function(x) {
+      is.call(x) && !identical(x[[1]], as.name("intercept"))
+    }
 
-  is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol 
-  stopifnot(is.wholenumber(n))
-  
-  res <- rep(1, n)
+    throw <- stopper("Without an informative context, need to specify `n`")
+    call <- sys.call(-1)
 
-  if (class(try(get_nsims(), silent = TRUE)) == "try-error")
-    res
-  else
-    gs(res, "data", colnames = "intercept")
+    if (length(call) > 0 && as.character(first(call)) %in%
+          c("cbind", "data.frame")) {
+      args <- call[-1]
+      name_arg <- Find(is.name2, args)
+      call_arg <- Find(is.call2, args)
+      env <- parent.frame()
+    } 
+
+    # dplyr::data_frame needs special treament due to `lazy_dots`
+    else if (sys.call(-4)[[1]] == as.name("data_frame_")) {
+      cols <- sys.frame(-4)$columns
+
+      name_lazy <- Find(function(x) is.name2(x$expr), cols)
+      call_lazy <- Find(function(x) is.call2(x$expr), cols)
+      name_arg <- name_lazy$expr
+      call_arg <- call_lazy$expr
+      env <- name_lazy$env %||% call_lazy$env
+    }
+
+    else
+      throw()
+
+    obj <- name_arg %||% call_arg %||% throw()
+    n <- length(eval(obj, env))
+  }
+
+  rep(1, n)
 }
-
 
 #' @export
 ones <- function(x, preds = list(NULL)) {
@@ -43,11 +68,6 @@ ones <- function(x, preds = list(NULL)) {
    do.call(cbind, res)
 }
 
-ones_ <- function(x, times = 1) {
-  x <- get_in_input(deparse(substitute(x)))
-  ones(x, times = times) %>% gs("data")
-}
-
 
 #' @export
 get_omega <- function(resid, sigma) {
@@ -61,8 +81,25 @@ row_vector <- function(x) {
   rbind(c(x))
 }
 
-
 #' @export
 col_vector <- function(x) {
   cbind(c(x))
+}
+
+
+## Faster than apply because uses colMeans
+#' @export
+colVars <- function(a) {
+  class(a) <- "matrix"
+  n <- nrow(a)
+  c <- ncol(a)
+  .colMeans(((a - matrix(.colMeans(a, n, c), nrow = n, ncol = c, byrow = TRUE))^2), n, c) * n / (n - 1)
+}
+
+#' @export
+rowVars <- function(a) {
+  class(a) <- "matrix"  # Circumvents a bug
+  n <- nrow(a)
+  c <- ncol(a)
+  .rowMeans(((a - matrix(.rowMeans(a, n, c), nrow = n, ncol = c, byrow = TRUE))^2), n, c) * n / (n - 1)
 }

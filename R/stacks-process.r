@@ -28,7 +28,6 @@ process_call <- function(x, single_sim = FALSE) {
   # If the arguments of a call are all vectorized operations, this
   # call is itself vectorized. If the arguments are mixed, then we
   # need to loop over the vectorised arguments as well.
-  ## browser(expr = getOption("debug_on"))
 
   predicate <-
     if (single_sim)
@@ -47,10 +46,12 @@ process_call <- function(x, single_sim = FALSE) {
   # single_sim needs a different logic: recursing until finding a name
   if (is.to_loop(x) && !single_sim) {
     is_posterior_call <- papply(x[-1], is.posterior_call)
+
     x[-1][is_posterior_call] <- lapply(x[-1][is_posterior_call], function(item) {
       obj <- eval_in_input(item) %>% init_posterior
       wrap_posterior(item, dim(obj))
     })
+
     x
   }
   else
@@ -61,7 +62,6 @@ process_expression <- function(x, single_sim = FALSE) {
   # Process expressions to modify calls depending on posterior arguments
   # with loop subsetting (need to initialise posterior if not done yet
   # to get dimensions of posterior objects)
-  ## browser(expr = getOption("debug_on"))
 
   if (is.no_loop(x) && !single_sim)
     x
@@ -77,7 +77,6 @@ process_expression <- function(x, single_sim = FALSE) {
 }
 
 process_assignment <- function(x, single_sim = FALSE) {
-  browser(expr = getOption("debug_on"))
   lhs <- x[[2]]
   rhs <- x[[3]]
 
@@ -108,8 +107,6 @@ process_assignment <- function(x, single_sim = FALSE) {
 process_stack <- function(stack, single_sim = FALSE) {
   # We process and eval each expression sequentially because some LHS
   # may be needed to figure out the dimensions of certain quantities
-  browser(expr = getOption("debug_on"))
-
   for (i in seq_along(stack)) {
     expr <- process_assignment(stack[[i]], single_sim = single_sim)
 
@@ -128,6 +125,7 @@ process_stack <- function(stack, single_sim = FALSE) {
 
   stack
 }
+
 
 make_reactive_function <- function(last_call) {
   stack_temp <- reactive_stack()
@@ -151,51 +149,68 @@ make_reactive_function <- function(last_call) {
   # stacks in memory, one optimized for computing all simulations, and
   # the other for computing quantities on a by-simulation basis.
   processed_stack <- NULL
-  `_last` <- NULL
+  processed_stack_single <- NULL
   
   fun <- function() {
-    # So that dyn_get can find `_enclos_env` in the parent env
+    # Anchor signalling dyn_get to find `_enclos_env` in the parent env
     `_gsim_container` <- TRUE
 
     # Assign user inputs to variables that can be lookep up while
     # evaluating calls
-    inputs <- names(formals())
-    lapply(inputs, function(x) {
-      value <- get(x, envir = parent.env(environment()))
-      assign_in_input(paste0("_input_ref_", x), value)
-    })
+    input_names <- names(formals())
+    n_inputs <- length(input_names) - 2
+    input_names <- input_names[seq_len(n_inputs)]
 
-    browser(expr = getOption("debug_on"))
+    inputs <- lapply(input_names, function(input) get(input))
+    names(inputs) <- input_names
 
-    if (is.function(out)) {
-      if (is.null(processed_stack)) {
-        process_stack(stack)
-        `_last` <<- get_in_input("_last")
-      }
 
-      `_last` %% out
-    }
-
-    else {
+    # Select simulation with which to evaluate stack
+    if (!is.function(out)) {
       if (out == "random")
         out <- sample(seq_len(nsims()), 1)
       assign_in_input("_i", out)
-
-      if (is.null(processed_stack))
-        processed_stack <<- process_stack(stack, single_sim = TRUE)
-      else 
-        lapply(processed_stack, eval_in_input)
-
-
-      res <- get_in_input("_last")
-      res <- pick_sim(res, out)
-
-      if (drop)
-        drop(res)
-      else
-        res
     }
+
+    compute <- function(...) {
+      dots <- list(...)
+      dot_names <- names(dots)
+
+      Map(function(input, value) {
+        assign_in_input(paste0("_input_ref_", input), value)
+      }, input = dot_names, value = dots)
+
+
+      if (is.function(out)) {
+        if (is.null(processed_stack))
+          processed_stack <<- process_stack(stack)
+        else
+          lapply(processed_stack, eval_in_input)
+
+        get_in_input("_last") %% out
+      }
+
+      else {
+        if (is.null(processed_stack_single))
+          processed_stack_single <<- process_stack(stack, single_sim = TRUE)
+        else 
+          lapply(processed_stack_single, eval_in_input)
+
+        res <- get_in_input("_last")
+        res <- pick_sim(res, out)
+
+        if (drop)
+          drop(res)
+        else
+          res
+      }
+    }
+
+    # Using Map with do.call to allow vector inputs
+    res <- do.call(Map, c(list(f = compute), inputs))
+    unlist(res, recursive = FALSE, use.names = FALSE)
   }
+
 
   inputs <- attr(last(stack), "input_names")
   args <- do.call("pairlist", vector("list", length(inputs) + 2))

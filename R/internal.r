@@ -2,11 +2,11 @@
 
 ## Look up objects dynamically through the calling stack
 dyn_get <- function(obj) {
-  res <- .dyn_get(obj)
+  res <- dyn_get_(obj)
   res$object
 }
 
-.dyn_get <- function(obj) {
+dyn_get_ <- function(obj) {
   n <- 1
   env <- parent.frame(1)
 
@@ -26,14 +26,14 @@ dyn_get <- function(obj) {
 
 
 container_env <- function() {
-  container_env <- .dyn_get("_gsim_container")$env
+  container_env <- dyn_get_("_gsim_container")$env
   env <- parent.env(container_env)$`_enclos_env`
   env
 }
 
 input_env <- function() {
   env <- container_env()
-  env$input
+  env$`_input`
 }
 
 metadata_getter <- function(obj) {
@@ -43,9 +43,7 @@ metadata_getter <- function(obj) {
   }
 }
 
-n <- get_n <- metadata_getter("_n")
-nsims <- get_nsims <- metadata_getter("_nsims")
-seq_index <- metadata_getter("_seq_index")
+nsims <- metadata_getter("_nsims")
 
 
 eval_in_input <- function(x) {
@@ -53,8 +51,8 @@ eval_in_input <- function(x) {
 }
 
 assign_in_input <- function(a, b) {
-  env <- container_env()
-  assign(a, b, envir = env$input)
+  env <- input_env()
+  assign(a, b, envir = env)
 }
 
 check_in_input <- function(x, predicate) {
@@ -87,61 +85,10 @@ as.gsarray <- function(x) {
 
 is.col_vector <- function(x) (dim(x)[2] == 1) %||% FALSE
 
-
 dots_q <- function(...) eval(substitute(alist(...)))
-
-dots <- function(..., simplify = FALSE) {
-  args <- list(...)
-  
-  # Transform numeric values to datas
-  args <- lapply(args, function(arg) {
-    if (is.numeric(arg))
-      gs(arg, "data")
-    else
-      arg
-  })
-
-  if (simplify)
-    simplify_list(args)
-  else
-    args
-}
-
-simplify_list <- function(list) {
-  stopifnot(list %>% is.list)
-  if (length(list) == 1)
-    first(list)
-  else
-    list
-}
-
-
-left_join.posterior <- function(x, y, by = NULL, ...) {
-  x %<>% set_class("data.frame", append = TRUE)
-  y %<>% set_class("data.frame", append = TRUE)
-  left_join(tbl_df(x), y, by = by, ...)
-} 
-
 
 quickdf <- function(x) {
   x %>%
     set_class("data.frame") %>%
     set_attr("row.names", .set_row_names(length(x[[1]])))
-}
-
-
-do_naked <- function(x, expr) {
-  old_attr <- attributes(x)
-  attributes(x) <- NULL
-  x <- eval(substitute(expr))
-  attributes(x) <- old_attr
-  x
-}
-
-do_unclassed <- function(x, expr) {
-  old_class <- class(x)
-  class(x) <- NULL
-  x <- eval(substitute(expr))
-  class(x) <- old_class
-  x
 }
