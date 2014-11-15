@@ -1,48 +1,26 @@
 
+add_ref <- function(x, is_input = FALSE) {
+  storage <- storage()
+  stack <- storage$`_ref_stack`
 
-to_recycle <- function(x) {
-  env <- input_env()
-  stack <- env$`_ref_stack`
   id <- last(stack) + 1
-
-  if (is.input(x)) {
-    inputs <- eval(x)
-    ref <- paste0("_input_ref_", inputs)
-  }
-  else {
-    inputs <- input_names(x)
-    ref <- paste0("_ref", id)
-  }
-
-  class <-
-    if (is.input(x))
-      "reactive"
-    else if (!is.null(inputs))
-      c("to_recycle", "reactive")
+  ref <-
+    if (is_input)
+      paste0("_input_ref_", input)
     else
-      "to_recycle"
+      paste0("_ref", id)
 
-  env[[ref]] <- x
-  env$`_ref_stack` <- c(stack, id)
+  assign_in_storage(ref, x)
+  assign_in_storage("_ref_stack", c(stack, id))
 
-  structure(
-    as.name(ref),
-    class = class,
-    input_names = inputs
-  )
-}
-
-add_ref <- function(x) {
-  env <- input_env()
-  stack <- env$`_ref_stack`
-
-  id <- last(stack) + 1
-  ref <- paste0("_ref", id)
-
-  env[[ref]] <- x
-  env[["_ref_stack"]] <- c(stack, id)
-
-  as.name(ref)
+  if (is_input)
+    structure(
+      as.name(ref),
+      class = "reactive",
+      input_names = input
+    )
+  else
+    as.name(ref)
 }
 
 clear_refs <- function(x) {

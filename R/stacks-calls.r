@@ -1,13 +1,8 @@
 
-
-call_stack <- container_getter("_call_stack")
-reactive_stack <- container_getter("_reactive_stack")
-reactive_recycling_stack <- container_getter("_reactive_recycling_stack")
-
 add_to_reactive_stack <- function(lhs, rhs) {
   inputs <- attr(rhs, "input_names")
   rhs_names <- find_names(rhs)
-  rhs_names <- rhs_names[rhs_names %in% reactive_lhs()]
+  rhs_names <- rhs_names[rhs_names %in% reactive_lhs_list()]
 
   
   call <- reactive(
@@ -16,19 +11,20 @@ add_to_reactive_stack <- function(lhs, rhs) {
     deps = rhs_names
   )
 
-  env <- container_env()
-  env$`_reactive_stack` <- c(env$`_reactive_stack`, call)
+  new_stack <- c(context("reactive_stack"), call)
+  assign_in_context("reactive_stack", new_stack)
 
   NULL
 }
 
 add_to_call_stack <- function(lhs, rhs) {
   call <- call("<-", as.name(lhs), rhs)
-  c(container_env()$`_call_stack`, call)
+  new_stack <- c(context("call_stack"), call)
+  assign_in_context("call_stack", new_stack)
+  NULL 
 }
 
 clear_call_stack <- function() {
-  env <- container_env()
-  env$`_call_stack` <- list()
+  assign_in_context("call_stack", list())
   invisible(NULL)
 }

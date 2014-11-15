@@ -18,14 +18,9 @@ get_wells_data <- function() {
 }
 
 wells <- get_wells_data()
-n_sims <- 100
-
 wells_fit <- glm(switched ~ c_dist100 * c_arsenic, binomial, wells)
-arm_sims <- arm::sim(wells_fit, n.sims = n_sims)
-clean_sims <- gsim(arm_sims, wells)
-
-get_clean_sims <- function() {
-  gsim(arm_sims, wells)
-}
-
 X <- wells %$% cbind(intercept(), c_dist100, c_arsenic, c_dist100 * c_arsenic)
+
+n_sims <- 100
+arm_sims <- arm::sim(wells_fit, n.sims = n_sims)
+new_sims <- gsim(arm_sims, wells)

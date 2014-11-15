@@ -2,7 +2,7 @@
 
 ## curve (invlogit (cbind (1, x/100, .5) %*% coef(fit.3)), add=TRUE)
 
-reactive <- function(call, input_names, deps = NULL) {
+reactive <- function(call, input_names, deps = NULL, ...) {
   old_class <- class(call)
 
   structure(

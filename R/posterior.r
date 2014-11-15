@@ -3,11 +3,13 @@ posterior <- function(object = NULL) {
   structure(object, class = "posterior")
 }
 
-is.posterior  <- function(x) inherits(x, "posterior")
+is.posterior  <- function(x) {
+  inherits(x, "posterior")
+}
 
 as.posterior <- function(x, nsims = NULL) {
   if (is.null(nsims))
-    nsims <- nsims()
+    nsims <- context("nsims")
 
   dims <- dim(x)
   res <- rep(x, nsims)
@@ -21,15 +23,15 @@ as.posterior <- function(x, nsims = NULL) {
   structure(perm_dims(res), class = "posterior")
 }
 
-# Simulations need to be the first dimension. But it is easier to add
-# a new dimension to the right than to the left. So, we append to the
-# right then we permute the array.
+# Simulations' array dimension need to be the first one. But it is
+# easier to add a new dimension to the right than to the left. So, we
+# append to the right then we permute the array.
 init_posterior <- function(x, nsims = NULL) {
   if (is.posterior(x))
     return(x)
 
   if (is.null(nsims))
-    nsims <- nsims()
+    nsims <- context("nsims")
 
   old_class <- setdiff(class(x), "matrix")
   n <- length(x)
@@ -37,7 +39,7 @@ init_posterior <- function(x, nsims = NULL) {
 
   if (is.null(dim))
     dim <- length(x)
-  else if (length(dim) == 1) # && dim == 1)
+  else if (length(dim) == 1 && dim == 1)
     dim <- c(1, 1)
   else if (last(dim) == 1)
     dim <- dim[-length(dim)]
@@ -105,7 +107,7 @@ unary_cbind <- function(x) {
 `[.posterior` <- function(x, i, ...) {
   x <- NextMethod(drop = FALSE)
 
-  # Drop first dimension, keeping the others
+  # Drop first dimension, keeping the others intact
   if (length(i) == 1)
     dim(x) <- dim(x)[-1] %||% 1
   else
@@ -114,6 +116,14 @@ unary_cbind <- function(x) {
   x
 }
 
+as.data.frame.posterior <- function(x, ...) {
+  if (!is.null(dim(x)))
+    class(x) <- "array"
+  else
+    class(x) <- "numeric"
+  x <- reshape2::melt(x)
+  x
+}
 
 # Convenience functions for debugging
 print.posterior <- function(x) {

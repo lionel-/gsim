@@ -14,7 +14,8 @@ dyn_get_ <- function(obj) {
     if (exists(obj, envir = env, inherits = FALSE))
       return(list(
         object = get(obj, envir = env),
-        env = env
+        env = env,
+        n = n
       ))
 
     n <- n + 1
@@ -26,9 +27,19 @@ dyn_get_ <- function(obj) {
 
 
 container_env <- function() {
-  browser(expr = getOption("debug_on"))
   env <- dyn_get_("_anchor")$env
   parent.env(env)
+}
+
+calling_env <- function() {
+  n <- dyn_get_("_anchor")$n
+  env <- parent.frame(n + 1)
+
+  # Needed for testthat. Maybe in other circumstances as well?
+  if (identical(ls(env), c("enclos", "envir", "expr")))
+    env$envir
+  else
+    env
 }
 
 context <- function(object = NULL) {
@@ -36,8 +47,20 @@ context <- function(object = NULL) {
   if (is.null(object))
     env$context
   else
-    env$context$object
+    env$context[[object]]
 }
+
+context_getter <- function(object) {
+  function(element = NULL) {
+    obj <- context(object)
+
+    if (is.null(element))
+      obj
+    else
+      obj[[match(element, obj)]]
+  }
+}
+
 
 storage <- function(object = NULL) {
   env <- container_env()
@@ -47,14 +70,20 @@ storage <- function(object = NULL) {
     env$storage[[object]]
 }
 
-## nsims <- function() {
-##   context()$nsims
-## }
-
+assign_in_context <- function(object, value) {
+  env <- container_env()
+  env$context[[object]] <- value
+  NULL
+}
 
 eval_in_storage <- function(x) {
-  context <- list2env(context(), parent = asNamespace("gsim"))
-  eval(x, storage(), context)
+  env <- container_env()
+  context <- list2env(env$context, parent = asNamespace("gsim"))
+  storage <- list2env(env$storage, parent = context)
+
+  res <- eval(x, storage)
+  env$storage <- as.list(storage)
+  res
 }
 
 assign_in_storage <- function(object, value) {

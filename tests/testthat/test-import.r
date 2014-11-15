@@ -1,6 +1,6 @@
 
 library("gsim")
-context("Correct import of simulations")
+testthat::context("Correct import of simulations")
 
 
 test_that("Simulations from lm object are correctly imported", {
@@ -21,6 +21,4 @@ test_that("Simulations from glm object are correctly imported", {
   expect_identical_output(sims_arm_glm_s4@sigma, sims_arm_glm(I(sigma)))
 })
 
-test_that("Simulations from Stan object are correctly imported", {
-  "todo"
-})
+test_that("Simulations from Stan object are correctly imported", {})

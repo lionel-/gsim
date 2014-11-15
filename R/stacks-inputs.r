@@ -1,10 +1,10 @@
 
-reactive_lhs <- container_getter("_reactive_lhs")
+reactive_lhs_list <- context_getter("reactive_lhs_list")
 
 lock <- function(lhs, dependencies, inputs) {
   new <- reactive(lhs, inputs)
 
-  dependencies <- dependencies[dependencies %in% reactive_lhs()]
+  dependencies <- dependencies[dependencies %in% reactive_lhs_list()]
 
   context <- context()
   context$reactive_lhs <- unique(c(context$reactive_lhs, list(new)))
@@ -21,5 +21,5 @@ is.locked <- function(var) {
 
 is.reactive_lhs <- function(lhs) {
   lhs <- as.character(lhs)
-  lhs %in% reactive_lhs()
+  lhs %in% reactive_lhs_list()
 }
