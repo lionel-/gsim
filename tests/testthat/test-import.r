@@ -1,9 +1,30 @@
 
 library("gsim")
-testthat::context("Correct import of simulations")
+testthat::context("Import of simulations and data")
 
-if (!requireNamespace("arm", quietly = TRUE))
-  stop("The package arm must be installed", call. = FALSE)
+check_packages("arm", "rstan", "rjags")
+
+
+test_that("Multiple data inputs are correctly imported", {
+  input1 <- list(data1 = 1:5, data2 = 6:10)
+  input2 <- list(1:5, data2 = 6:10)
+  input3 <- 10:15
+  input4 <- matrix(1:12, 3, 4)
+
+  sims <- gsim(arm_sims, wells, input1, data3 = input3, data4 = input4)
+
+  expect_identical(wells$educ, sims(I(educ)))
+  expect_identical(input1$data1, sims(I(data1)))
+  expect_identical(input1$data2, sims(I(data2)))
+  expect_identical(input3, sims(I(data3)))
+  expect_identical(input4, sims(I(data4)))
+
+  expect_that(gsim(arm_sims), not(gives_warning()))
+  expect_warning(gsim(arm_sims, input2), "input elements are not named")
+  expect_warning(gsim(arm_sims, input3), "input elements are not named")
+  expect_error(gsim(arm_sims, beta = 1:5),
+    "conflict between the names of data and parameters")
+})
 
 
 test_that("Simulations from lm objects are correctly imported", {

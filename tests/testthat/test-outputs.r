@@ -1,6 +1,6 @@
 
 library("gsim")
-testthat::context("Equality of outputs and manually looped results")
+testthat::context("Outputs")
 
 
 test_that("Simple function, vectorized and unvectorized", {

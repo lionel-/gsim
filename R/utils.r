@@ -22,11 +22,6 @@ apluck <- function(x, ...) {
   lapply(x, fun)
 }
 
-utils <- list()
-utils$class <- function(x) cat(class(x), "\n")
-utils$str <- function(x) cat(str(x), "\n")
-
-
 set_class <- function(x, ..., append = FALSE) {
   class <-
     if (append) 

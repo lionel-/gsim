@@ -21,8 +21,7 @@ gsim <- function(sims, ..., n_sims = 100) {
   context$reactive_stack <- list()
   context$reactive_lhs_list <- list()
   context$locked <- NULL
-
-  context$list <- `_list`
+  context <- c(context, overrides)
 
   storage <- init_storage(sims, ...)
   storage$`_ref_stack` <- 0
@@ -36,14 +35,23 @@ gsim <- function(sims, ..., n_sims = 100) {
 
 init_storage <- function(sims, ...) {
   dots <- list(...)
-  data <- 
-    if (length(dots) == 0)
-      NULL
-    else if (length(dots) == 1)
-      dots[[1]]
-    else
-      stop("Multiple data inputs not implemented yet")
+
+  if (length(dots) > 0) {
+    is_numeric <- papply(dots, is.numeric)
+    dots[is_numeric] <- lapply(dots[is_numeric], list)
+    dots <- do.call(c, dots)
+
+    is_unnamed <- (names(dots) == "") %||% TRUE
+    if (any(is_unnamed))
+      warning("Some input elements are not named. They will not be visible in the container",
+        call. = FALSE)
+
+    is_conflict <- names(dots) %in% names(sims)
+    if (any(is_conflict))
+      stop(paste("There is a conflict between the names of data and parameters:",
+        names(dots)[is_conflict]), call. = FALSE)
+  }
 
   sims <- lapply(sims, posterior)
-  c(data, sims)
+  c(dots, sims)
 }
