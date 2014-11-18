@@ -5,32 +5,36 @@
 #' @importFrom magrittr %>% %$%
 # Note, maybe @rdname to document unexported functions?
 
+# Debugging flags
+pass1 <- FALSE
+pass2 <- FALSE
+
+
 #' @export
-gsim <- function(mclist, ...) {
-  if (!is.mclist(mclist))
-    mclist <- as.mclist(mclist)
+gsim <- function(sims, ..., n_sims = 100) {
+  if (!is.mclist(sims))
+    sims <- as.mclist(sims, n_sims = n_sims)
 
   context <- list()
-  context$nsims <- dim(mclist[[1]])[1]
+  context$nsims <- dim(sims[[1]])[1]
   context$call_stack <- list()
   context$reactive_stack <- list()
   context$reactive_lhs_list <- list()
   context$locked <- NULL
 
   context$list <- `_list`
-  ## `_enclos`$rnorm <- gen_norm
 
-  storage <- init_storage(mclist, ...)
+  storage <- init_storage(sims, ...)
   storage$`_ref_stack` <- 0
   storage$`_i` <- 1
 
   fun <- container
   environment(fun) <- environment()
-  class(fun) <- c("gsim_fun", "function")
+  class(fun) <- c("gsim_container", "function")
   invisible(fun)
 }
 
-init_storage <- function(mclist, ...) {
+init_storage <- function(sims, ...) {
   dots <- list(...)
   data <- 
     if (length(dots) == 0)
@@ -40,6 +44,6 @@ init_storage <- function(mclist, ...) {
     else
       stop("Multiple data inputs not implemented yet")
 
-  mclist <- Map(posterior, mclist)
-  c(data, mclist)
+  sims <- lapply(sims, posterior)
+  c(data, sims)
 }

@@ -3,11 +3,15 @@
 \name{gsim}
 \alias{gsim}
 \alias{gsim-package}
+\alias{pass1}
 \title{gsim.}
+\format{\preformatted{ logi FALSE
+}}
 \usage{
-gsim(mclist, ...)
+pass1
 }
 \description{
 gsim.
 }
+\keyword{datasets}
 

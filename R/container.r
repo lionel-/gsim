@@ -99,7 +99,7 @@ deprotect <- function(x, AsIs = FALSE) {
 
 
 #' @export
-summary.gsim_fun <- function(x) {
+summary.gsim_container <- function(x) {
   storage <- environment(x)$storage
   storage$`_i` <- NULL
   storage$`_ref_stack` <- NULL
@@ -108,7 +108,7 @@ summary.gsim_fun <- function(x) {
 }
 
 #' @export
-print.gsim_fun <- function(x) {
+print.gsim_container <- function(x) {
   storage <- environment(x)$storage
   storage$`_i` <- NULL
   storage$`_ref_stack` <- NULL
@@ -122,7 +122,7 @@ print.gsim_fun <- function(x) {
 
 #' @export
 clone <- function(old_fun) {
-  if (!inherits(old_fun, "gsim_fun"))
+  if (!inherits(old_fun, "gsim_container"))
     stop("This is not a `gsim` container")
 
   context <- environment(old_fun)$context

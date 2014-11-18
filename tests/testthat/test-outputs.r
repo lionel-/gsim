@@ -54,30 +54,20 @@ test_that("Posterior predictive checks", {
     residuals_rep <- y_rep - fitted
     residuals_var_rep <- var(residuals_rep)
 
-    ## I(list(fitted, residuals))
-    ## I(residuals)
-    ## I(residuals_var)
-    ## I(y_rep)
-    I(residuals_var_rep)
+    list(residuals_var, residuals_var_rep)
   })
 
 
-  ## expect_identical_output(loop_y_rep, out)
-
-  ## expect_identical_output(loop_fitted, test)
-  ## expect_identical_output(loop_residuals, out)
-  ## expect_identical_output(loop_residuals_var, out)
-  ## expect_identical_output(loop_y_rep, out)
-  ## expect_identical_output(loop_residuals_var_rep, out)
-
-  qplot(residuals_var, residuals_var_rep) +
-    geom_abline(a = 0, b = 1)
+  expect_identical_output(loop_residuals_var, sims(I(residuals_var)))
+  expect_identical_output(loop_residuals_var_rep, sims(I(residuals_var_rep)))
 })
 
 
 test_that("Listed looped operations", {
   # TODO: Not clear what to do with calls such as
-  # list(3, X %*% beta)
+  #   list(3, X %*% beta)
+  # or, in previous test,
+  #   list(residuals_var, residuals_var_rep)
 
   # Probably need to differentiate between array operations and the
   # rest

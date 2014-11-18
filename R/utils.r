@@ -1,13 +1,26 @@
 
-pluck <- function(x, i) {
-  lapply(x, `[[`, i)
+dots <- function (...) {
+  eval(substitute(alist(...)))
 }
 
-vpluck <- function(x, i, type = NULL) {
+pluck <- function(x, ...) {
+  lapply(x, `[[`)
+}
+
+vpluck <- function(x, ..., type = NULL) {
   if (is.null(type)) type <- x[[1]][[i]]
-  vapply(x, `[[`, i, FUN.VALUE = type)
+  vapply(x, `[[`, ..., FUN.VALUE = type)
 }
 
+apluck <- function(x, ...) {
+  dots <- dots(...)
+
+  args <- as.pairlist(alist(x=))
+  body <- do.call(call, c(list("[", as.name("x")), dots), quote = TRUE)
+  fun <- eval(call("function", args, body))
+
+  lapply(x, fun)
+}
 
 utils <- list()
 utils$class <- function(x) cat(class(x), "\n")

@@ -46,8 +46,9 @@ init_posterior <- function(x, nsims = NULL) {
 
   x <- c(x, rep(NA, n * (nsims - 1)))
   dim(x) <- c(dim, nsims)
+  x <- perm_dims(x)
 
-  structure(perm_dims(x), class = c("posterior", old_class))
+  structure(x, class = c("posterior", old_class))
 }
 
 

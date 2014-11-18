@@ -8,11 +8,12 @@ LazyData: true
 Depends:
     R (>= 3.1.1)
 Imports:
-    dplyr (>= 0.2),
-    stringr (>= 0.6.2)
+    dplyr (>= 0.2)
 Suggests:
-    knitr,
+    arm,
     rstan,
+    rjags,
+    knitr,
     testthat,
     RCurl
 VignetteBuilder: knitr
