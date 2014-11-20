@@ -1,9 +1,9 @@
-#' gsim.
+#' Gorgeous manipulations of SIMulations
 #'
 #' @name gsim
 #' @docType package
 #' @importFrom magrittr %>% %$%
-# Note, maybe @rdname to document unexported functions?
+NULL
 
 # Debugging flags
 pass1 <- FALSE
@@ -11,16 +11,17 @@ pass2 <- FALSE
 
 
 #' @export
-gsim <- function(sims, ..., n_sims = 100) {
+gsim <- function(sims, ..., n_sims = 100, tidy_output = TRUE) {
   if (!is.mclist(sims))
     sims <- as.mclist(sims, n_sims = n_sims)
 
   context <- list()
-  context$nsims <- dim(sims[[1]])[1]
+  context$n_sims <- dim(sims[[1]])[1]
   context$call_stack <- list()
   context$reactive_stack <- list()
   context$reactive_lhs_list <- list()
   context$locked <- NULL
+  context$tidy_output <- tidy_output
   context <- c(context, overrides)
 
   storage <- init_storage(sims, ...)

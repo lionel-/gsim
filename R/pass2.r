@@ -49,7 +49,7 @@ pass2_call <- function(x, single_sim = FALSE) {
   
   # single_sim needs a different logic: recursing until finding a name
   # Otherwise: wrap if is.no_loop, or if is.name && is.posterior
-  #todo: should we have names here??
+  # TODO: should we have names here??
   if (is.to_loop(x) && !single_sim) {
     should_wrap <- function(x) is.no_loop(x) || is.posterior_name(x)
     wrap_me <- papply(x[-1], should_wrap)
@@ -73,13 +73,10 @@ pass2_expression <- function(x, single_sim = FALSE) {
 
   if (is.no_loop(x) && !single_sim)
     x
-
   else if (is.call(x))
     pass2_call(x, single_sim = single_sim)
-
   else if (is.name(x))
     pass2_name(x)
-
   else
     x
 }
@@ -89,7 +86,7 @@ pass2_assignment <- function(x, single_sim = FALSE) {
   lhs <- x[[2]]
   rhs <- x[[3]]
 
-  #todo: Why would is.to_loop() not be applicable?
+  # TODO: Why would is.to_loop() not be applicable?
   ## if (is.posterior_call(rhs) && !is.no_loop(rhs)) {
   if (is.to_loop(rhs) || (is.no_loop(rhs) && single_sim)) {
     rhs <- pass2_call(rhs, single_sim = single_sim)
@@ -128,7 +125,7 @@ pass2_stack <- function(stack, single_sim = FALSE) {
         call("{", expr, quote(NULL))
       else
         call("{", expr) %>% call("for", quote(`_i`),
-          bquote(seq(1, .(context("nsims")))), .)
+          bquote(seq(1, .(context("n_sims")))), .)
 
     tryCatch(
       eval_in_storage(expr),
@@ -142,109 +139,4 @@ pass2_stack <- function(stack, single_sim = FALSE) {
   }
 
   stack
-}
-
-
-make_reactive_function <- function(last_call) {
-  stack_temp <- context("reactive_stack")
-  deps <- attr(last(stack_temp), "deps")
-
-  # Discard calls with non-relevant inputs
-  stack <- list(last(stack_temp))
-  while (length(stack_temp) > 0) {
-    if (as.character(stack_temp[[c(length(stack_temp), 2)]]) %in% deps) {
-      deps <- unique(c(deps, attr(last(stack_temp), "deps")))
-      stack <- append(stack, last(stack_temp), after = 0)
-    }
-    last(stack_temp) <- NULL
-  }
-
-  context <- context()
-  storage <- storage()
-
-  # Process stacks only once, when first called. We keep two different
-  # stacks in memory, one optimized for computing all simulations, and
-  # the other for computing quantities on a by-simulation basis.
-  processed_stack <- NULL
-  processed_stack_single <- NULL
-  
-
-  fun <- reactive_fun
-  environment(fun) <- environment()
-
-  inputs <- attr(last(stack), "input_names")
-  args <- do.call("pairlist", vector("list", length(inputs) + 2))
-
-  names(args) <- c(inputs, "out", "drop")
-  len <- length(args)
-  args[c(len - 1, len)] <- c("random", TRUE)
-
-  formals(fun) <- args
-  class(fun) <- c("function", "reactive_fun")
-
-  fun
-}
-
-reactive_fun <- function() {
-  # Anchor signalling dyn_get to find `context` and `storage` in the
-  # parent environment
-  `_anchor` <- TRUE
-
-  # Assign user inputs to variables that can be lookep up while
-  # evaluating calls
-  input_names <- names(formals())
-  n_inputs <- length(input_names) - 2
-  input_names <- input_names[seq_len(n_inputs)]
-
-  inputs <- lapply(input_names, function(input) get(input))
-  names(inputs) <- input_names
-
-
-  # Select simulation with which to evaluate stack
-  if (!is.function(out)) {
-    if (out == "random")
-      out <- sample(seq_len(nsims()), 1)
-    assign_in_storage("_i", out)
-  }
-
-  compute <- compute
-  environment(compute) <- environment()
-
-  # Using Map with do.call to allow vector inputs
-  res <- do.call(Map, c(list(f = compute), inputs))
-  unlist2(res, recursive = FALSE)
-}
-
-compute <- function(...) {
-  dots <- list(...)
-  dot_names <- names(dots)
-
-  Map(function(input, value) {
-    assign_in_storage(paste0("_input_ref_", input), value)
-  }, input = dot_names, value = dots)
-
-
-  if (is.function(out)) {
-    if (is.null(processed_stack))
-      processed_stack <<- pass2_stack(stack)
-    else
-      lapply(processed_stack, eval_in_storage)
-
-    get_in_storage("_last") %% out
-  }
-
-  else {
-    if (is.null(processed_stack_single))
-      processed_stack_single <<- pass2_stack(stack, single_sim = TRUE)
-    else 
-      lapply(processed_stack_single, eval_in_storage)
-
-    res <- get_in_storage("_last")
-    res <- pick_sim(res, out)
-
-    if (drop)
-      drop(res)
-    else
-      res
-  }
 }

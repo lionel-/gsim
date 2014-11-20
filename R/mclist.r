@@ -4,7 +4,8 @@
 #' mclist. Simulations from fitted models are obtained through
 #' \code{sim} from the package arm.
 #'
-#' @param n_sims Number of simulations to obtain from a fitted model.
+#' @param n_sims Passed to sim from the arm package. Number of
+#' simulations to obtain from a fitted model.
 #' @return An mclist. This is a list of posterior simulations with one
 #' element per parameter. Each list element is an array whose the
 #' first dimension represents the simulations.
@@ -151,13 +152,28 @@ clean_coefnames <- function(names) {
 }
 
 
-#' @describeIn as.mclist Converts Jags simulations to mclist
+#' @describeIn as.mclist Converts Jags or Stan simulation lists to mclist
 #' @export
 as.mclist.list <- function(x, ...) {
   is_mcarray <- papply(x, function(item) inherits(item, "mcarray"))
-  if (!all(is_mcarray))
-    stop("Only lists containing Jags simulations are allowed", call. = FALSE)
+  if (all(is_mcarray))
+    as.mclist.jagslist(x)
 
+  else {
+    all_array <- all(papply(x, is.array))
+    sim_len <- lapply(x, function(item) dim(item)[1])
+    same_sim_len <- all(sim_len == sim_len[[1]])
+
+    if (all_array && same_sim_len) {
+      class(x) <- "mclist"
+      x  
+    }
+    else
+      stop("List is not a Jags/Stan object", call. = FALSE)
+  }
+}
+
+as.mclist.jagslist <- function(x) {
   mclist <- lapply(x, function(item) {
     dim <- dim(item)
     len <- length(dim)
@@ -171,6 +187,7 @@ as.mclist.list <- function(x, ...) {
 
   mclist
 }
+
 
 #' @describeIn as.mclist Converts Coda simulations to mclist
 #' @export

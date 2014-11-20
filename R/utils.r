@@ -111,3 +111,12 @@ stopper <- function(x) {
     stop(x, call. = FALSE)
   }
 }
+
+check_packages <- function(...) {
+  packages <- c(...)
+  lapply(packages, function(x) {
+    if (!requireNamespace(x, quietly = TRUE))
+      stop(paste("The package", x, "must be installed"), call. = FALSE)
+  })
+  invisible(NULL)
+}

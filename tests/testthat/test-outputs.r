@@ -3,6 +3,16 @@ library("gsim")
 testthat::context("Outputs")
 
 
+test_that("Simple assignment", {
+  sims <- clone(new_sims)
+  out <- sims({
+    res <- switched
+    I(res)
+  })
+  expect_identical(wells$switched, out)
+})
+
+
 test_that("Simple function, vectorized and unvectorized", {
   simple_loop <- array(dim = c(n_sims, 4))
   for (i in 1:n_sims)
@@ -60,6 +70,11 @@ test_that("Posterior predictive checks", {
 
   expect_identical_output(loop_residuals_var, sims(I(residuals_var)))
   expect_identical_output(loop_residuals_var_rep, sims(I(residuals_var_rep)))
+})
+
+
+test_that("Posterior predictive checks, hierarchical", {
+  load(radon_sims_file)
 })
 
 

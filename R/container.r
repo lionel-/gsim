@@ -2,7 +2,6 @@
 container <- function(...) {
   `_anchor` <- TRUE
   dots <- eval(substitute(alist(...)))
-  browser(expr = getOption("debug_on"))
 
   is.curly <- function(x) inherits(x, "{")
   is.quoted <- function(x) {
@@ -33,68 +32,54 @@ container <- function(...) {
   dots <- unlist2(dots, recursive = FALSE)
   curly <- do.call(call, c(list("{"), dots), quote = TRUE)
 
-  res <- pass1_curly(curly)
+  res <- eval_curly(curly)
 
-  res <- 
-    if (is.AsIs(res))
-      deprotect(res, AsIs = TRUE)
+  out_name <- 
+    if (is.name(last(dots)))
+      as.character(last(dots))
+    else
+      NULL
+  res <- maybe_tidy(res, out_name)
 
-    else if (is.protected(res))
-      deprotect(res)
-
-    else if (is.list(res)) {
-      is_as_is <- papply(res, is.AsIs)
-      is_protected <- papply(res, is.protected)
-      to_tidy <- !is_as_is & !is_protected
-
-      res[is_as_is] <- lapply(res[is_as_is], deprotect, AsIs = TRUE)
-      res[is_protected] <- lapply(res[is_protected], deprotect)
-      res[to_tidy] <- lapply(res[to_tidy], as.data.frame)
-
-      res
-    }
-
-    else if (!is.null(res) && !is.reactive_fun(res))
-      as.data.frame(res)
+  if (is.reactive_fun(res))
+    clear_reactive_data()
 
   invisible(res)
 }
 
-pass1_curly <- function(x) {
+
+eval_curly <- function(x) {
   force(x)
   if (length(x) == 2)
-    pass1_statement(x[[2]], last_statement = TRUE)
+    eval_statement(x[[2]], last_statement = TRUE)
   else {
     others <- x[seq(2, max(length(x) - 1, 2))]
     last <- last(x)
     for (i in seq_along(others))
-      enclos <- pass1_statement(others[[i]])
-    pass1_statement(last, last_statement = TRUE)
+      enclos <- eval_statement(others[[i]])
+    eval_statement(last, last_statement = TRUE)
   }
 }
 
-P <- function(x) {
-  class(x) <- c(class(x), "protected")
-  x
-}
+eval_statement <- function(x, last_statement = FALSE) {
+  if (is.assignment(x))
+    pass1_assignment(lhs = deparse(x[[2]]), rhs = x[[3]])
+  else if (last_statement)
+    pass1_assignment(lhs = "_last", rhs = x)
 
-is.AsIs <- function(x) {
-  inherits(x, "AsIs")
-}
+  if (last_statement) {
+    stack <- context("call_stack")
+    stack <- pass2_stack(stack)
+    clear_call_stack()
+    clear_refs(stack)
 
-is.protected <- function(x) {
-  inherits(x, "protected")
-}
-
-deprotect <- function(x, AsIs = FALSE) {
-  class_diff <- 
-    if (AsIs)
-      c("AsIs", "posterior")
+    if ("_last" %in% context("locked"))
+      make_reactive_function()
     else
-      "protected"
-
-  class(x) <- setdiff(class(x), class_diff) %||% "numeric"
-  x
+      storage("_last")
+  }
+  else
+    NULL
 }
 
 
@@ -131,6 +116,6 @@ clone <- function(old_fun) {
 
   fun <- container
   environment(fun) <- environment()
-  class(fun) <- c("gsim_fun", "function")
+  class(fun) <- c("gsim_container", "function")
   invisible(fun)
 }

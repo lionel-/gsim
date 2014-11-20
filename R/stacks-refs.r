@@ -1,12 +1,11 @@
 
 add_ref <- function(x, is_input = FALSE) {
-  storage <- storage()
-  stack <- storage$`_ref_stack`
+  stack <- storage("_ref_stack")
 
   id <- last(stack) + 1
   ref <-
     if (is_input)
-      paste0("_input_ref_", input)
+      paste0("_input_ref_", x)
     else
       paste0("_ref", id)
 
@@ -17,7 +16,7 @@ add_ref <- function(x, is_input = FALSE) {
     structure(
       as.name(ref),
       class = "reactive",
-      input_names = input
+      input_names = x
     )
   else
     as.name(ref)

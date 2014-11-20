@@ -76,32 +76,59 @@ get_omega <- function(resid, sigma) {
 }
 
 
+#' Make row vector
+#'
+#' Wrapper around rbind to produce a row vector (an array of dimension
+#' 1 x n).
+#'
+#' @param x numeric vector.
 #' @export
 row_vector <- function(x) {
   rbind(c(x))
 }
 
+#' Make column vector
+#'
+#' Wrapper around cbind to produce a column vector (an array of
+#' dimension n x 1).
+#'
+#' @param x numeric vector.
 #' @export
 col_vector <- function(x) {
   cbind(c(x))
 }
 
 
-## Faster than apply because uses colMeans
+#' Optimised variance computation
+#'
+#' colVars uses colMeans to provide an efficient way of computing the
+#' variances of the columns of a matrix.
+#'
+#' @param x numeric matrix.
 #' @export
-colVars <- function(a) {
-  class(a) <- "matrix"
-  n <- nrow(a)
-  c <- ncol(a)
-  .colMeans(((a - matrix(.colMeans(a, n, c), nrow = n, ncol = c, byrow = TRUE))^2), n, c) * n / (n - 1)
+colVars <- function(x) {
+  class(x) <- "matrix"
+  n <- nrow(x)
+  c <- ncol(x)
+  x <- ((x - matrix(.colMeans(x, n, c), nrow = n, ncol = c, byrow = TRUE))^2)
+  .colMeans(x, n, c) *
+    n / (n - 1)
 }
 
+#' Optimised variance computation
+#'
+#' rowVars uses rowMeans to provide an efficient way of computing the
+#' variances of the rows of a matrix.
+#'
+#' @param x a numeric matrix
 #' @export
-rowVars <- function(a) {
-  class(a) <- "matrix"  # Circumvents a bug
-  n <- nrow(a)
-  c <- ncol(a)
-  .rowMeans(((a - matrix(.rowMeans(a, n, c), nrow = n, ncol = c, byrow = TRUE))^2), n, c) * n / (n - 1)
+rowVars <- function(x) {
+  class(x) <- "matrix"  # Circumvents a bug
+  n <- nrow(x)
+  c <- ncol(x)
+  x <- ((x - matrix(.rowMeans(x, n, c), nrow = n, ncol = c, byrow = TRUE))^2)
+  .rowMeans(x, n, c) *
+    n / (n - 1)
 }
 
 
@@ -115,4 +142,24 @@ rbind_cols <- function(object) {
   ncols <- ncol(object)
   nrows <- nrow(object)
   array(object, c(nrows * ncols, 1))
+}
+
+
+#' Quantile helper functions
+#'
+#' These functions provide shortcuts to obtain particular quantiles.
+#'
+#' @name quantiles
+#' @param x numeric vector.
+
+#' @rdname quantiles
+#' @export
+q025 <- function(x) {
+  quantile(x, 0.025)
+}
+
+#' @rdname quantiles
+#' @export
+q975 <- function(x) {
+  quantile(x, 0.975)
 }

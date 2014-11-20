@@ -36,7 +36,8 @@ as.mclist(x, ...)
 is.mclist(x)
 }
 \arguments{
-\item{n_sims}{Number of simulations to obtain from a fitted model.}
+\item{n_sims}{Passed to sim from the arm package. Number of
+simulations to obtain from a fitted model.}
 }
 \value{
 An mclist. This is a list of posterior simulations with one
@@ -69,7 +70,7 @@ converts to mclist
 \item \code{glmerMod}: Simulates from a glmer fitted model and
 converts to mclist
 
-\item \code{list}: Converts Jags simulations to mclist
+\item \code{list}: Converts Jags or Stan simulation lists to mclist
 
 \item \code{mcmc.list}: Converts Coda simulations to mclist
 }}

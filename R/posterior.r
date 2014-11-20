@@ -7,31 +7,32 @@ is.posterior  <- function(x) {
   inherits(x, "posterior")
 }
 
-as.posterior <- function(x, nsims = NULL) {
-  if (is.null(nsims))
-    nsims <- context("nsims")
+as.posterior <- function(x, n_sims = NULL) {
+  if (is.null(n_sims))
+    n_sims <- context("n_sims")
 
   dims <- dim(x)
-  res <- rep(x, nsims)
+  res <- rep(x, n_sims)
 
   dim(res) <- 
     if (is.null(dims))
-      c(length(x), nsims)
+      c(length(x), n_sims)
     else
-      c(dims, nsims)
+      c(dims, n_sims)
 
-  structure(perm_dims(res), class = "posterior")
+  res <- perm_dims(res)
+  structure(res, class = "posterior")
 }
 
 # Simulations' array dimension need to be the first one. But it is
 # easier to add a new dimension to the right than to the left. So, we
 # append to the right then we permute the array.
-init_posterior <- function(x, nsims = NULL) {
+init_posterior <- function(x, n_sims = NULL) {
   if (is.posterior(x))
     return(x)
 
-  if (is.null(nsims))
-    nsims <- context("nsims")
+  if (is.null(n_sims))
+    n_sims <- context("n_sims")
 
   old_class <- setdiff(class(x), "matrix")
   n <- length(x)
@@ -44,8 +45,8 @@ init_posterior <- function(x, nsims = NULL) {
   else if (last(dim) == 1)
     dim <- dim[-length(dim)]
 
-  x <- c(x, rep(NA, n * (nsims - 1)))
-  dim(x) <- c(dim, nsims)
+  x <- c(x, rep(NA, n * (n_sims - 1)))
+  dim(x) <- c(dim, n_sims)
   x <- perm_dims(x)
 
   structure(x, class = c("posterior", old_class))
@@ -60,10 +61,10 @@ pick_sim_index <- function(x, sim) {
   else {
     param_dim <- dims[-1]
     param_length <- prod(param_dim)
-    nsims <- dims[1]
+    n_sims <- dims[1]
 
-    to <- (param_length - 1) * nsims + sim
-    seq(from = sim, to, by = nsims)
+    to <- (param_length - 1) * n_sims + sim
+    seq(from = sim, to, by = n_sims)
   }
 }
 
@@ -117,14 +118,6 @@ unary_cbind <- function(x) {
   x
 }
 
-as.data.frame.posterior <- function(x, ...) {
-  if (!is.null(dim(x)))
-    class(x) <- "array"
-  else
-    class(x) <- "numeric"
-  x <- reshape2::melt(x)
-  x
-}
 
 # Convenience functions for debugging
 print.posterior <- function(x) {

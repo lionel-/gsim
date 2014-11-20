@@ -3,15 +3,8 @@
 \name{gsim}
 \alias{gsim}
 \alias{gsim-package}
-\alias{pass1}
-\title{gsim.}
-\format{\preformatted{ logi FALSE
-}}
-\usage{
-pass1
-}
+\title{Gorgeous manipulations of SIMulations}
 \description{
-gsim.
+Gorgeous manipulations of SIMulations
 }
-\keyword{datasets}
 

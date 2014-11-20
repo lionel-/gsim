@@ -24,3 +24,15 @@ test_that("Initialization produces correct dimensions", {
   out5 <- init_posterior(x5, 100)
   expect_equal(dim(out5), c(100, 4))
 })
+
+
+test_that("as.posterior works", {
+  sims <- clone(new_sims)
+  sims(offset <- as.posterior(seq(1, 4)))
+  out1 <- sims(alt <- beta + offset, P(alt))
+  out2 <- sims(I(alt - beta))
+  offset <- sims(I(offset))
+
+  expect_is(out1, "posterior")
+  expect_equal(c(out2), as.double(offset))
+})

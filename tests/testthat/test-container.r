@@ -2,6 +2,7 @@
 library("gsim")
 testthat::context("Creation and manipulation of containers")
 
+
 test_that("Cloning a container makes them independent", {
   sims <- clone(new_sims)
   sims(new_var <- 1)
@@ -26,7 +27,6 @@ test_that("Call stack gets cleaned on error", {
 test_that("Listed output protects and names elements", {
   sims <- clone(new_sims)
 
-  new_sims <- gsim(arm_sims, wells); sims <- clone(new_sims)
   out <- sims(list(
     I(beta),
     dup = P(beta),
@@ -38,6 +38,21 @@ test_that("Listed output protects and names elements", {
   expect_is(out[[1]], "matrix")
   expect_is(out[[2]], "posterior")
   expect_is(out[[3]], "data.frame")
+})
+
+
+test_that("Tidying takes place when appropriate", {
+  sims <- gsim(arm_sims, wells, tidy_output = FALSE)
+
+  out1 <- sims(list(
+    beta,
+    dup = T(beta)
+  ))
+  out2 <- sims(T(sigma))
+
+  expect_is(out1$beta, "matrix")
+  expect_is(out1$dup, "data.frame")
+  expect_is(out2, "data.frame")
 })
 
 

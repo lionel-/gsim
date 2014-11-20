@@ -153,62 +153,24 @@ test_that("Stan simulations are correctly imported", {
   expect_identical_output(sims_stan$beta, sims(I(beta)))
 
 
-  stan_radon_data <- c(radon %>% select(-radon), list(N = nrow(radon)))
-  stan_radon_m <- "
-    data {
-      int<lower=0> N; 
-      int<lower=1, upper=85> county[N];
-      vector[N] u;
-      vector[N] x;
-      vector[N] y;
-    } 
+  stan_radon_data <- c(
+    radon %>% select(y, x, county),
+    radon %>% group_by(county) %>% distinct(u) %>% ungroup %>% select(u),
+    list(
+      N = nrow(radon),
+      J = n_distinct(radon$county)
+    )
+  )
+  stan_radon_m <- system.file("tests", "testthat", "radon.stan",
+    package = "gsim")
 
-    transformed data {
-      vector[N] inter;
-    
-      inter <- u .* x;
-    }
-
-    parameters {
-      vector[85] a;
-      vector[85] b;
-      vector[2] beta;
-      real mu_a;
-      real mu_b;
-      real mu_beta;
-      real<lower=0,upper=100> sigma_a;
-      real<lower=0,upper=100> sigma_b;
-      real<lower=0,upper=100> sigma_beta;
-      real<lower=0,upper=100> sigma_y;
-    } 
-
-    transformed parameters {
-      vector[N] y_hat;
-    
-      for (i in 1:N)
-        y_hat[i] <- a[county[i]] + x[i] * b[county[i]] + beta[1] * u[i]     
-          + beta[2] * inter[i];
-    }
-
-    model {
-      mu_beta ~ normal(0, 1);
-      beta ~ normal(100 * mu_beta, sigma_beta);
-    
-      mu_a ~ normal(0, 1);
-      a ~ normal (mu_a, sigma_a);
-    
-      mu_b ~ normal(0, 1);
-      b ~ normal (0.1 * mu_b, sigma_b);
-    
-      y ~ normal(y_hat, sigma_y);
-    }
-  "
-
-  stan_radon_fit <- rstan::stan(model_code = stan_radon_m, data = stan_radon_data, iter = 200)
-  sims_radon_stan <- extract(stan_radon_fit)
+  stan_radon_fit <- rstan::stan(stan_radon_m, data = stan_radon_data, iter = 200)
+  sims_radon_stan <- rstan::extract(stan_radon_fit)
   sims_radon <- gsim(stan_radon_fit)
+
   expect_identical_output(sims_radon_stan$beta, sims_radon(I(beta)))
   expect_identical_output(sims_radon_stan$b, sims_radon(I(b)))
+  expect_identical_output(sims_radon_stan$Sigma_county, sims_radon(I(Sigma_county)))
 })
 
 

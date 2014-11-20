@@ -1,5 +1,4 @@
 
-
 ## Look up objects dynamically through the calling stack
 dyn_get <- function(obj) {
   res <- dyn_get_(obj)
