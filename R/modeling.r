@@ -1,4 +1,16 @@
-
+#' Intercept column
+#'
+#' Create a column of ones. This is useful for creating design
+#' matrices.
+#'
+#' \code{n} is an optional argument: when \code{intercept} is nested
+#' inside \code{cbind}, \code{data.frame} or \code{data_frame}, it
+#' examines its surroundings to automatically determine its length.
+#'
+#' @param n
+#' @examples
+#' cbind(intercept(), 1:5)
+#'
 #' @export
 intercept <- function(n = NULL) {
   if (is.null(n)) {
@@ -21,7 +33,7 @@ intercept <- function(n = NULL) {
     } 
 
     # dplyr::data_frame needs special treament due to `lazy_dots`
-    else if (sys.call(-4)[[1]] == as.name("data_frame_")) {
+    else if (try(sys.call(-4)[[1]], TRUE) == as.name("data_frame_")) {
       cols <- sys.frame(-4)$columns
 
       name_lazy <- Find(function(x) is.name2(x$expr), cols)
@@ -41,6 +53,10 @@ intercept <- function(n = NULL) {
   rep(1, n)
 }
 
+
+#' Design matrices for hierarchical models
+#'
+#' TODO: Document me
 #' @export
 ones <- function(x, preds = list(NULL)) {
   n <- length(unique(x))
@@ -69,19 +85,12 @@ ones <- function(x, preds = list(NULL)) {
 }
 
 
-#' @export
-get_omega <- function(resid, sigma) {
-  omega <- (sd(resid) / mean(sigma))^2
-  pmin(omega, 1)
-}
-
-
 #' Make row vector
 #'
-#' Wrapper around rbind to produce a row vector (an array of dimension
-#' 1 x n).
+#' Wrapper around rbind to produce a row vector.
 #'
 #' @param x numeric vector.
+#' @return array of dimension 1 x n.
 #' @export
 row_vector <- function(x) {
   rbind(c(x))
@@ -89,10 +98,10 @@ row_vector <- function(x) {
 
 #' Make column vector
 #'
-#' Wrapper around cbind to produce a column vector (an array of
-#' dimension n x 1).
+#' Wrapper around cbind to produce a column vector.
 #'
 #' @param x numeric vector.
+#' @return array of dimension n x 1.
 #' @export
 col_vector <- function(x) {
   cbind(c(x))
@@ -162,4 +171,11 @@ q025 <- function(x) {
 #' @export
 q975 <- function(x) {
   quantile(x, 0.975)
+}
+
+
+#' @export
+get_omega <- function(resid, sigma) {
+  omega <- (sd(resid) / mean(sigma))^2
+  pmin(omega, 1)
 }
