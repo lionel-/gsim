@@ -84,7 +84,7 @@ test_that("Simulations from polr objects are correctly imported", {
 
 
 test_that("Simulations from lmer objects are correctly imported", {
-  radon <- get_radon_data()
+  radon <- fetch_radon_data()
   radon_lmer_fit <- lmer(y ~ x + u + x:u + (1 + x | county), radon)
 
   set.seed(100)

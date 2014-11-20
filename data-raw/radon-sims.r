@@ -1,6 +1,7 @@
 
 # Data for tests
 
+radon <- fetch_radon_data()
 stan_radon_data <- c(
   radon %>% select(y, x, county),
   radon %>% group_by(county) %>% distinct(u) %>% ungroup %>% select(u),
@@ -18,4 +19,4 @@ radon_stanfit <- rstan::stan(stan_radon_m, data = stan_radon_data,
 radon_sims <- rstan::extract(radon_stanfit,
   c("a", "b", "alpha", "beta", "Sigma_county", "rho", "sigma_y"))
 
-## save(radon_sims, file = "tests/testthat/radon-sims.rda")
+## save(radon_sims, file = "./tests/testthat/radon-sims.rda")
