@@ -44,7 +44,6 @@ reactive_fun <- function() {
   # Anchor signalling dyn_get to find `context` and `storage` in the
   # parent environment
   `_anchor` <- TRUE
-  browser(expr = getOption("debug_on"))
 
   # Assign user inputs to variables that can be lookep up while
   # evaluating calls
@@ -80,7 +79,6 @@ reactive_fun <- function() {
 }
 
 compute <- function(...) {
-  browser(expr = getOption("debug_on"))
   dots <- list(...)
   dot_names <- names(dots)
 

@@ -1,0 +1,118 @@
+
+# Creating gsim containers
+
+You first create a gsim container with the function `gsim`. A
+container holds the simulations of your parameters as well as any
+relevant data, and executes operations on these objects.
+
+
+The first argument to `gsim` is the object containing simulations of
+parameters. This object can be:
+
+* A Stan, Jags, or CODA object.
+
+* `arm::sim` simulations. The simulations are saved in the container
+  under the names `beta` and `sigma`.
+
+* Fitted models (lm, glm, polr, lmer). Gsim then uses `arm::sim` to
+sample parameters from their estimated sampling distribution. In the
+case of `lmer` objects, the advantage of supplying the fitted model
+instead of ARM simulations is that gsim can work out the fitted values
+(which are saved in the container under the name `fitted`).
+
+The remaining arguments to `gsim` are lists, data.frames and named
+numeric vectors or arrays, to be saved inside the container.
+
+
+# Wells example
+
+In this vignette, we'll first work with the Bangladesh Wells dataset
+described in
+[Gelman and Hill's textbook](http://www.amazon.com/Analysis-Regression-Multilevel-Hierarchical-Models/dp/052168689X).
+This dataset can be retrieved using the `fetch_wells_data` script.
+
+For simplicity, we'll fit a classical logistic model and sample from
+the sampling distribution of the parameters, but you can of course
+supply real posterior simulations to gsim.
+
+```{r}
+wells_data <- fetch_wells_data()
+wells_fit <- glm(switched ~ c_dist100 * c_arsenic, binomial, wells)
+sims <- gsim(wells_fit, wells_data)
+```
+
+Once the container created, you can check its contents using `print()`
+and `summary()`.
+
+```{r}
+print(sims)
+summary(sims)
+```
+
+
+## Posterior Predictive Check
+
+Gsim is most useful to easily create statistical summaries depending
+on data and parameters that can be used to check the model. In this
+example, we'll check for overdispersion of the residuals.
+
+The observed residual standard deviation is relevant to check this
+aspect of the model. Computing this discrepancy measure is an ideal
+job for gsim because it depends on both the data and the parameters of
+the regression model. Even if the measure depended solely on the data,
+gsim can still be useful to sample replicates from the posterior
+predictive distribution (ppd) of the data.
+
+We'll need to:
+* Compute the fitted values.
+* Compute the observed residual standard deviation.
+* Sample replicates from the ppd.
+* Compute the residual standard deviation of the replicates.
+
+
+### Using gsim
+
+In general, fitted values are a by-product of posterior simulations
+and we'll already be available. Also, if we used a glmer model, gsim
+would have been able to retrieve the fitted values
+automatically. Since this is not the case here, we need to compute
+them manually.
+
+Note the use of gsim's `intercept()` function to construct the
+intercept column. It examines the arguments of the surrounding
+function (here, `cbind`) to figure out automatically the length of the
+vector of 1's. Gsim also provides a `rbernoulli` wrapper to `rbinom`
+to make the intent of the code clearer.
+
+```{r}
+p <- sims({
+  X <- cbind(intercept(), c_dist100, c_arsenic, c_dist100 * c_arsenic)
+  fitted <- inv_logit(X %*% col_vector(beta))
+  residuals <- switched - fitted
+  residuals_sd <- sd(residuals)
+
+  y_rep <- rbernoulli(3020, fitted)
+  residuals_rep <- y_rep - fitted
+  residuals_sd_rep <- sd(residuals_rep)
+
+  summarise_sims(residuals_sd > residuals_sd_rep, mean)
+})
+
+p
+```
+
+Last step shortcut.
+
+
+### Using loops
+
+In comparison, here is the code needed to compute the ppc quantities
+with manual loops over simulations. The code is much more verbose and
+the mathematical content less clear.
+
+```{r}
+
+```
+
+
+### Reusable statements

@@ -18,9 +18,10 @@ test_that("Cloning a container makes them independent", {
 test_that("Call stack gets cleaned on error", {
   sims <- clone(new_sims)
   expect_error(sims(void_var))
+  expect_error(sims(void_list$void_var))
 
-  out <- try(sims(I(beta)), silent = TRUE)
-  expect_is(out, "matrix")
+  call_stack <- environment(sims)$context$call_stack
+  expect_identical(call_stack, list())
 })
 
 

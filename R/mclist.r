@@ -13,7 +13,7 @@ as.mclist <- function(x, ...) {
   UseMethod("as.mclist")
 }
 
-#' @describeIn as.mclist Converts Stan simulations to mclist
+#' @describeIn as.mclist Convert Stan simulations to mclist
 #' @export
 as.mclist.stanfit <- function(x, ...) {
   if (!requireNamespace("rstan", quietly = TRUE))
@@ -25,7 +25,7 @@ as.mclist.stanfit <- function(x, ...) {
 }
 
 
-#' @describeIn as.mclist Converts arm::sim simulations to mclist
+#' @describeIn as.mclist Convert arm::sim simulations to mclist
 #' @export
 as.mclist.sim <- function(sims, ...) {
   mclist <- process_arm_sims(sims)
@@ -52,13 +52,13 @@ as.mclist.lm <- function(x, n_sims = 100) {
   as.mclist.sim(sims)
 }
 
-#' @describeIn as.mclist Simulates from a glm fitted model and
-#' converts to mclist
+#' @describeIn as.mclist Simulate from a glm fitted model and
+#' convert to mclist
 #' @export
 as.mclist.glm <- as.mclist.lm
 
-#' @describeIn as.mclist Simulates from a glm fitted model and
-#' converts to mclist
+#' @describeIn as.mclist Simulate from a glm fitted model and
+#' convert to mclist
 #' @export
 as.mclist.polr <- as.mclist.lm
 
@@ -116,8 +116,8 @@ set_list_dimnames <- function(list) {
   }, list, names(list))
 }
 
-#' @describeIn as.mclist Simulates from a lmer fitted model and
-#' converts to mclist
+#' @describeIn as.mclist Simulate from a lmer fitted model and
+#' convert to mclist
 #' @export
 as.mclist.merMod <- function(x, n_sims = 100) {
   if (!requireNamespace("arm", quietly = TRUE))
@@ -128,8 +128,8 @@ as.mclist.merMod <- function(x, n_sims = 100) {
   as.mclist.sim.merMod(sims, x)
 }
 
-#' @describeIn as.mclist Simulates from a glmer fitted model and
-#' converts to mclist
+#' @describeIn as.mclist Simulate from a glmer fitted model and
+#' convert to mclist
 as.mclist.glmerMod <- as.mclist.merMod
 
 
@@ -152,7 +152,7 @@ clean_coefnames <- function(names) {
 }
 
 
-#' @describeIn as.mclist Converts Jags or Stan simulation lists to mclist
+#' @describeIn as.mclist Convert Jags or Stan simulation lists to mclist
 #' @export
 as.mclist.list <- function(x, ...) {
   is_mcarray <- papply(x, function(item) inherits(item, "mcarray"))
@@ -189,7 +189,7 @@ as.mclist.jagslist <- function(x) {
 }
 
 
-#' @describeIn as.mclist Converts Coda simulations to mclist
+#' @describeIn as.mclist Convert Coda simulations to mclist
 #' @export
 #' @importFrom stringr str_extract str_match str_replace_all
 as.mclist.mcmc.list <- function(x, ...) {

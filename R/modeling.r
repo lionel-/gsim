@@ -1,7 +1,6 @@
 #' Intercept column
 #'
-#' Create a column of ones. This is useful for creating design
-#' matrices.
+#' Create a column of ones. This is useful to make a design matrix.
 #'
 #' \code{n} is an optional argument: when \code{intercept} is nested
 #' inside \code{cbind}, \code{data.frame} or \code{data_frame}, it
@@ -87,10 +86,12 @@ ones <- function(x, preds = list(NULL)) {
 
 #' Make row vector
 #'
-#' Wrapper around rbind to produce a row vector.
+#' Wrapper around rbind to produce a row vector. \code{row_vector(x)}
+#' is equivalent to \code{rbind(x)} but it only accepts one argument
+#' and is a clearer semantic signal.
 #'
 #' @param x numeric vector.
-#' @return array of dimension 1 x n.
+#' @return Array of dimension 1 x n.
 #' @export
 row_vector <- function(x) {
   rbind(c(x))
@@ -98,10 +99,12 @@ row_vector <- function(x) {
 
 #' Make column vector
 #'
-#' Wrapper around cbind to produce a column vector.
+#' Wrapper around cbind to produce a column vector. \code{col_vector(x)}
+#' is equivalent to \code{cbind(x)} but it only accepts one argument
+#' and is a clearer semantic signal.
 #'
 #' @param x numeric vector.
-#' @return array of dimension n x 1.
+#' @return Array of dimension n x 1.
 #' @export
 col_vector <- function(x) {
   cbind(c(x))
@@ -160,7 +163,7 @@ rbind_cols <- function(object) {
 #'
 #' @name quantiles
 #' @param x numeric vector.
-
+#'
 #' @rdname quantiles
 #' @export
 q025 <- function(x) {
@@ -178,4 +181,10 @@ q975 <- function(x) {
 get_omega <- function(resid, sigma) {
   omega <- (sd(resid) / mean(sigma))^2
   pmin(omega, 1)
+}
+
+
+#' @export
+inv_logit <- function(x) {
+  1 / (1 + exp(-x))
 }

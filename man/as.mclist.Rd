@@ -51,27 +51,27 @@ mclist. Simulations from fitted models are obtained through
 }
 \section{Methods (by class)}{
 \itemize{
-\item \code{stanfit}: Converts Stan simulations to mclist
+\item \code{stanfit}: Convert Stan simulations to mclist
 
-\item \code{sim}: Converts arm::sim simulations to mclist
+\item \code{sim}: Convert arm::sim simulations to mclist
 
 \item \code{lm}: Simulate from a lm fitted model and convert
 to mclist
 
-\item \code{glm}: Simulates from a glm fitted model and
-converts to mclist
+\item \code{glm}: Simulate from a glm fitted model and
+convert to mclist
 
-\item \code{polr}: Simulates from a glm fitted model and
-converts to mclist
+\item \code{polr}: Simulate from a glm fitted model and
+convert to mclist
 
-\item \code{merMod}: Simulates from a lmer fitted model and
-converts to mclist
+\item \code{merMod}: Simulate from a lmer fitted model and
+convert to mclist
 
-\item \code{glmerMod}: Simulates from a glmer fitted model and
-converts to mclist
+\item \code{glmerMod}: Simulate from a glmer fitted model and
+convert to mclist
 
-\item \code{list}: Converts Jags or Stan simulation lists to mclist
+\item \code{list}: Convert Jags or Stan simulation lists to mclist
 
-\item \code{mcmc.list}: Converts Coda simulations to mclist
+\item \code{mcmc.list}: Convert Coda simulations to mclist
 }}
 

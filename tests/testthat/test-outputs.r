@@ -51,8 +51,11 @@ test_that("Posterior predictive checks", {
   dim(loop_residuals_var) <- c(n_sims, 1)
   dim(loop_residuals_var_rep) <- c(n_sims, 1)
 
+  loop_p <- mean(loop_residuals_var > loop_residuals_var_rep)
+
 
   sims <- clone(new_sims)
+  sims <- gsim(arm_sims, wells)
   out <- sims({
     X <- cbind(intercept(), c_dist100, c_arsenic, c_dist100 * c_arsenic)
     fitted <- arm::invlogit(X %*% col_vector(beta))
@@ -64,12 +67,14 @@ test_that("Posterior predictive checks", {
     residuals_rep <- y_rep - fitted
     residuals_var_rep <- var(residuals_rep)
 
-    list(residuals_var, residuals_var_rep)
+    I(list(residuals_var, residuals_var_rep))
   })
 
+  p <- sims((residuals_var > residuals_var_rep) %% mean)
 
-  expect_identical_output(loop_residuals_var, sims(I(residuals_var)))
-  expect_identical_output(loop_residuals_var_rep, sims(I(residuals_var_rep)))
+  expect_identical_output(loop_residuals_var, out$residuals_var)
+  expect_identical_output(loop_residuals_var_rep, out$residuals_var_rep)
+  expect_identical(loop_p, p)
 })
 
 
