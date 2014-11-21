@@ -14,7 +14,7 @@ overrides$list <- function(...) {
   expr <- substitute(alist(...))
   expr <- as.list(expr[-1])
 
-  names <- names(dots)
+  names <- names(dots) %||% rep("", length(dots))
   named <- papply(names, function(name) !name == "")
   names[!named] <- lapply(expr[!named], function(item) {
     name <- as.character(item)

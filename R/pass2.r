@@ -55,7 +55,10 @@ pass2_call <- function(x, single_sim = FALSE) {
     wrap_me <- papply(x[-1], should_wrap)
 
     x[-1][wrap_me] <- lapply(x[-1][wrap_me], function(item) {
-      obj <- eval_first(item) %>% init_posterior
+      tryCatch(
+        obj <- eval_first(item) %>% init_posterior,
+        error = stack_error
+      )
       wrap_posterior(item, dim(obj))
     })
 
@@ -92,7 +95,10 @@ pass2_assignment <- function(x, single_sim = FALSE) {
     rhs <- pass2_call(rhs, single_sim = single_sim)
 
     # Need to get dimensions of rhs to construct the lhs subsetting
-    rhs_obj <- eval_first(rhs) %>% init_posterior
+    rhs_obj <- tryCatch(
+      eval_first(rhs) %>% init_posterior,
+      error = stack_error
+    )
 
     # Create a lhs of same dimensions as the rhs
     assign_in_storage(as.character(lhs), rhs_obj)
@@ -103,12 +109,6 @@ pass2_assignment <- function(x, single_sim = FALSE) {
   else
     no_loop(x)
 }
-
-# two logics in reactive functions: either give posterior mean, or use
-# a single sim.
-
-# posterior mean: respect vectorised ops.
-# single sim: wrap every posterior_call objects
 
 pass2_stack <- function(stack, single_sim = FALSE) {
   browser(expr = pass2)
@@ -129,10 +129,7 @@ pass2_stack <- function(stack, single_sim = FALSE) {
 
     tryCatch(
       eval_in_storage(expr),
-      error = function(c) {
-        clear_call_stack()
-        stop(c$message, call. = FALSE)
-      }
+      error = stack_error
     )
 
     stack[[i]] <- expr

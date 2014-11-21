@@ -86,23 +86,37 @@ eval_statement <- function(x, last_statement = FALSE) {
 #' @export
 summary.gsim_container <- function(x) {
   storage <- environment(x)$storage
-  storage$`_i` <- NULL
-  storage$`_ref_stack` <- NULL
+  storage[grep("^_", names(storage))] <- NULL
 
-  lapply(storage, head)
+  lapply(storage, summary.default)
+}
+
+#' @export
+head.gsim_container <- function(x, ...) {
+  storage <- environment(x)$storage
+  storage[grep("^_", names(storage))] <- NULL
+
+  lapply(storage, head, ...)
 }
 
 #' @export
 print.gsim_container <- function(x) {
   storage <- environment(x)$storage
-  storage$`_i` <- NULL
-  storage$`_ref_stack` <- NULL
+  storage[grep("^_", names(storage))] <- NULL
 
   is_posterior <- vapply(storage, is.posterior, logical(1))
   n_posterior <- sum(is_posterior)
   n_data <- length(storage) - n_posterior
 
-  cat("gsim container with", n_data, "variables and", n_posterior, "parameters\n")
+  names_posterior <- names(storage)[is_posterior]
+  names_posterior <- do.call(paste, c(as.list(names_posterior), list(sep = ", ")))
+  names_posterior <- paste0("(", names_posterior, ")")
+  names_data <- names(storage)[!is_posterior]
+  names_data <- do.call(paste, c(as.list(names_data), list(sep = ", ")))
+  names_data <- paste0("(", names_data, ")")
+
+  cat(paste0("gsim container with: \n\n", n_posterior), "parameters",
+    names_posterior, "and", n_data, "variables", names_data, "\n")
 }
 
 #' @export

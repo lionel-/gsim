@@ -114,3 +114,8 @@ quickdf <- function(x) {
     set_class("data.frame") %>%
     set_attr("row.names", .set_row_names(length(x[[1]])))
 }
+
+stack_error <- function(c) {
+  clear_call_stack()
+  stop(c$message, call. = FALSE)
+}

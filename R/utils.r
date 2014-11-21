@@ -114,9 +114,25 @@ stopper <- function(x) {
 
 check_packages <- function(...) {
   packages <- c(...)
-  lapply(packages, function(x) {
-    if (!requireNamespace(x, quietly = TRUE))
-      stop(paste("The package", x, "must be installed"), call. = FALSE)
+  is_installed <- papply(packages, function(x) {
+    requireNamespace(x, quietly = TRUE)
   })
+
+  msg <- 
+    if (sum(!is_installed) > 1)
+      "Please install the following packages: "
+    else
+      "Please install "
+  msg2 <- do.call(paste, c(as.list(packages[!is_installed]), list(sep = ", ")))
+
+  if (any(!is_installed))
+    stop(paste0(msg, msg2), call. = FALSE)
   invisible(NULL)
+}
+
+# base::I uses oldClass which does not figure out implicit classes
+# from typeof(x)
+I <- function(x) {
+  old <- class(x)
+  structure(x, class = unique(c("AsIs", old)))
 }

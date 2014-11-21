@@ -8,9 +8,21 @@ test_that("Data objects are correctly tidied", {
 
   out1 <- sims(switched)
   out2 <- sims(cbind(switched, educ))
+  out3 <- sims(matrix(1, 1, 1))
 
   expect_identical(names(out1), "switched")
   expect_identical(names(out2), c("col1", "col2"))
+})
+
+
+test_that("Atomics and vectors are not data.frame'd", {
+  sims <- clone(new_sims)
+  
+  out1 <- sims(1:3)
+  out2 <- sims(matrix(1, 1, 1))
+
+  expect_identical(out1, 1:3)
+  expect_identical(out2, 1)
 })
 
 

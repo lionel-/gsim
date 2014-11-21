@@ -58,7 +58,7 @@ clean_class <- function(x) {
     else
       c("AsIs", "posterior", "tidy_me")
 
-  class(x) <- setdiff(class(x), class_diff) %||% "numeric"
+  class(x) <- (setdiff(class(x), class_diff)) %||% "numeric"
   x
 }
 
@@ -71,9 +71,15 @@ tidy.default <- function(x, ...) {
 }
 
 tidy.numeric <- function(x, name = NULL) {
-  x <- as.data.frame(x)
-  names(x) <- make_names(x, name)
-  x
+  # Don't coerce atomics and vectors.
+  # We don't use prod here because prod(NULL) = 1
+  if ((Reduce(`*`, dim(x)) == length(x)) %||% TRUE)
+    drop(x)
+  else {
+    x <- as.data.frame(x)
+    names(x) <- make_names(x, name)
+    x
+  }
 }
 
 tidy.posterior <- function(x, name = NULL) {

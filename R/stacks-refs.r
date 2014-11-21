@@ -1,6 +1,6 @@
 
 add_ref <- function(x, is_input = FALSE) {
-  stack <- storage("_ref_stack")
+  stack <- context("ref_stack")
 
   id <- last(stack) + 1
   ref <-
@@ -10,7 +10,7 @@ add_ref <- function(x, is_input = FALSE) {
       paste0("_ref", id)
 
   assign_in_storage(ref, x)
-  assign_in_storage("_ref_stack", c(stack, id))
+  assign_in_context("ref_stack", c(stack, id))
 
   if (is_input)
     structure(
@@ -23,12 +23,11 @@ add_ref <- function(x, is_input = FALSE) {
 }
 
 clear_refs <- function(x) {
-  ids <- find_refs(x) %>% unlist(use.names = FALSE)
+  ids <- find_refs(x) %>% unlist2
   if (!is.null(ids)) {
-    env <- input_env()
     for (i in seq_along(ids)) {
       ref <- paste0("_ref", ids[i])
-      rm(list = ref, envir = env)
+      assign_in_storage(ref, NULL)
     }
   }
 }
@@ -41,10 +40,8 @@ find_refs <- function(x) {
     else
       NULL
   }
-
   else if (is.call(x))
     lapply(x, find_refs)
-
   else
     NULL
 }

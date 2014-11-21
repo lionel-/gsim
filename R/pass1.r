@@ -2,6 +2,8 @@
 
 call_args <- function(x) as.list(x)[-1]
 is_arg_call <- function(x) vapply(call_args(x), is.call, logical(1))
+call_fun <- function(x) deparse(x[[1]]) 
+
 
 is.empty <- function(x) inherits(x, "empty")
 is.assignment <- function(x) is.call(x) && as.character(x[[1]]) == "<-"
@@ -108,7 +110,7 @@ get_new_inputs <- function(x) {
 }
 
 maybe_recycle <- function(x) {
-  if (is.atomic(x))
+  if (is.atomic(x) || is.name(x))
     x
   else if (is.recyclable(x) && !(is.name(x) &&  is.locked(x))) {
     res <- eval_in_storage(x)
@@ -142,12 +144,29 @@ pass1_args <- function(x) {
     inputs <- unique(c(inputs, new_inputs))
   }
 
-  if (is.null(inputs))
+  
+  if (is.null(inputs)) {
+    if (call_fun(x) %in% vectorised_funs) {
+      to_loop_args <- papply(x, is.to_loop)
+
+      if (any(to_loop_args))
+        x[to_loop_args] <- lapply(x[to_loop_args], function(item) {
+          ref <- add_ref(empty_posterior())
+          add_to_call_stack(ref, item)
+          no_loop(ref, subclass = "posterior_call")
+        })
+    }
+
     x
+  }
   else
     reactive(x, inputs)
+
 }
 
+vectorised_funs <- c(
+  "(", "{", "I", "P", "T", "list", "%%", "summarise_sims"
+)
 
 # Looping over all simulations can be avoided in certain cases
 mark_looping <- function(x, n_post, to_loop) {
@@ -157,10 +176,10 @@ mark_looping <- function(x, n_post, to_loop) {
   if (to_loop)
     to_loop(x)
 
-  else if (fun %in% c("(", "{", "I", "P", "T", "list"))
+  else if (fun %in% vectorised_funs)
     no_loop(x, subclass = "posterior_call")
 
-  # No looping for binary elementwise ops with _two posterior_ args
+  # No looping for binary elementwise ops with _two_ _posterior_ args
   else if (n_post == 2 && fun %in% c("+", "-", "*", "/"))
     no_loop(x, subclass = "posterior_call")
 
