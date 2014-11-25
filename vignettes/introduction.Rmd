@@ -407,7 +407,7 @@ spaghetti effect.
   wells_sims`, the two objects will share the same content. Assigning
   or modifying a variable in *wells\_sims\_copy* will also take effect
   inside *wells\_sims*. To effectively copy a container, use
-  `clone()`, as in `wells\_sims\_copy <- clone(wells\_sims)`.
+  `clone()`, as in `wells_sims_copy <- clone(wells_sims)`.
 
 * Currently, flow control statements will not work inside gsim (if,
   for, ...).
