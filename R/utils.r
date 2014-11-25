@@ -101,7 +101,7 @@ unlist2 <- function(x, recursive = TRUE) {
   .Internal(unlist(x, recursive, FALSE))
 }
 
-# `vapply` with logical(1) outputs (p stands for predictate)
+# Wrapper to `vapply` with logical(1) outputs (p stands for predictate)
 papply <- function(X, FUN, ..., USE.NAMES = TRUE) {
   vapply(X, FUN, FUN.VALUE = logical(1), ..., USE.NAMES = USE.NAMES)
 }
@@ -138,8 +138,7 @@ I <- function(x) {
 }
 
 
-# Waiver objects, same function as in ggplot2
-
-waiver <- function() structure(NULL, class = "waiver")
-
-is.waive <- function(x) inherits(x, "waiver")
+# Null objects, necessary because NULL objects in a list represent
+# non-existing objects
+null <- function() structure(NULL, class = "null")
+is.null2 <- function(x) inherits(x, "null")

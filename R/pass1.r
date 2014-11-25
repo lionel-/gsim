@@ -113,7 +113,8 @@ maybe_recycle <- function(x) {
   if (is.atomic(x) || is.name(x))
     x
   else if (is.recyclable(x) && !(is.name(x) &&  is.locked(x))) {
-    res <- eval_in_storage(x)
+    res <- eval_in_storage(x) %||% null()
+
     is_input <- is.input(x)
     x <- add_ref(res, is_input)
     x
@@ -252,7 +253,7 @@ pass1_assignment <- function(lhs, rhs) {
   }
   else if (is.name(rhs)) {
     rhs_obj <- storage(as.character(rhs))
-    assign_in_storage(lhs, rhs_obj)
+    assign_in_storage(lhs, rhs_obj %||% null())
   }
   else if (is.atomic(rhs))
     assign_in_storage(lhs, rhs)

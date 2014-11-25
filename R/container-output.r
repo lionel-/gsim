@@ -19,10 +19,12 @@ is.to_tidy <- function(x) {
 
 
 get_output_names <- function(x) {
+  if (is.call(x) && call_fun(x) == "I")
+    x <- x[[2]]
+
   if (is.name(x))
     as.character(x)
-
-  else if (is.call(x) && x[[1]] == as.name("list")) {
+  else if (is.call(x) && call_fun(x) == "list") {
     x <- x[-1]
 
     names <- names(x) %||% as.character(x)
@@ -35,18 +37,28 @@ get_output_names <- function(x) {
 
     names
   }
-
   else
     NULL
 }
 
 
 maybe_tidy <- function(x, names) {
-  ## browser(expr = getOption("debug_on"))
+  UseMethod("maybe_tidy")
+}
+
+maybe_tidy.default <- function(x, names) {
   if (is.protected(x))
     clean_class(x)
+  else if (context("tidy_output") || is.to_tidy(x))
+    tidy(x, names)
+  else if (is.posterior(x))
+    clean_class(x)
+  else
+    x
+}
 
-  else if (is.list(x)) {
+maybe_tidy.list <- function(x, names) {
+  if (!is.protected(x)) {
     is.to_clean <-
       if (context("tidy_output"))
         is.protected
@@ -64,19 +76,10 @@ maybe_tidy <- function(x, names) {
     x[is_to_clean] <- lapply(x[is_to_clean], clean_class)
     x[is_to_tidy] <- Map(function(item, name) tidy(item, name),
       item = x[is_to_tidy], name = names[is_to_tidy] %||% NULL)
-
-    names(x) <- make.names(names)
-    x
   }
 
-  else if (context("tidy_output") || is.to_tidy(x))
-    tidy(x, names)
-
-  else if (is.posterior(x))
-    clean_class(x)
-
-  else
-    x
+  names(x) <- make.names(names)
+  x
 }
 
 clean_class <- function(x) {
@@ -111,6 +114,7 @@ tidy.numeric <- function(x, name = NULL) {
 }
 
 tidy.posterior <- function(x, name = NULL) {
+  browser(expr = getOption("debug_on"))
   if (is.null(dim(x)))
     dim(x) <- length(x)
   dims <- dim(x)

@@ -38,7 +38,7 @@ test_that("Posterior predictive checks", {
   loop_residuals_var <- apply(loop_residuals, 1, var)
 
   set.seed(123)
-  rbinom(3020, 1, 0.1)  # To account for eval_first
+  invisible(rbinom(3020, 1, 0.1))  # To account for eval_first
 
   loop_y_rep <- array(dim = c(n_sims, 3020))
   loop_residuals_rep <- array(dim = c(n_sims, 3020))
@@ -78,7 +78,7 @@ test_that("Posterior predictive checks", {
 
 
 test_that("Posterior predictive checks, hierarchical", {
-  load(radon_sims_file)
+  ## load(radon_sims_file)
 })
 
 

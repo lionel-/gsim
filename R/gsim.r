@@ -6,8 +6,10 @@
 NULL
 
 # Debugging flags
-pass1 <- FALSE
-pass2 <- FALSE
+if (!exists("pass1", envir = globalenv()))
+  pass1 <- FALSE
+if (!exists("pass2", envir = globalenv()))
+  pass2 <- FALSE
 
 
 #' gsim container

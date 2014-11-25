@@ -10,6 +10,10 @@ container <- function(...) {
     evaled <- try(eval(x, calling_env()), silent = TRUE)
     is.language(evaled) || inherits(evaled, "{")
   }
+  is.in_storage <- function(x) {
+    name <- as.character(x)
+    name %in% names(storage())
+  }
 
   # Ignore names except if last statement (can be either quoted or
   # storaged)
@@ -18,12 +22,11 @@ container <- function(...) {
   dots <- dots[!irrelevant]
 
   # Give priority to objects in storage
-  last_name <- as.character(last(dots))
-  if (is.quoted(last(dots)) && is.null(storage(last_name)))
+  if (is.quoted(last(dots)) && !is.in_storage(last(dots)))
     last(dots) <- eval(last(dots), calling_env())
 
   # Get actual expressions
-  is_quoted <- papply(dots, is.quoted)
+  is_quoted <- papply(dots, function(x) is.quoted(x) && !is.in_storage(x))
   dots[is_quoted] <- lapply(dots[is_quoted], eval, envir = calling_env())
 
   # Get everything inside one single curly
@@ -46,6 +49,7 @@ container <- function(...) {
 
 eval_curly <- function(x) {
   force(x)
+
   if (length(x) == 2)
     eval_statement(x[[2]], last_statement = TRUE)
   else {
@@ -64,9 +68,9 @@ eval_statement <- function(x, last_statement = FALSE) {
     pass1_assignment(lhs = "_last", rhs = x)
 
   if (last_statement) {
-    # waiver so that storage() recognizes that it should return NULL
+    # null() so that storage() recognizes that it should return NULL
     if (is.assignment(x))
-      assign_in_storage("_last", waiver())
+      assign_in_storage("_last", null())
 
     stack <- context("call_stack")
     stack <- pass2_stack(stack)

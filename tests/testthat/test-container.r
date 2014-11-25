@@ -58,7 +58,7 @@ test_that("Quoted input", {
 
   # If quoted name also exists in storage, it gets priority
   beta <- quote(switched)
-  expect_is(sims(beta), "data.frame")
+  expect_that(sims(beta), not(is_identical_to(sims(switched))))
 })
 
 
@@ -77,7 +77,7 @@ test_that("Curly input", {
 
 
 test_that("Quoted curly input with one or several elements", {
-  new_sims <- gsim(arm_sims, wells); sims <- clone(new_sims)
+  sims <- clone(new_sims)
   
   in1 <- quote({
     x1 <- cbind(switched, c_dist100)

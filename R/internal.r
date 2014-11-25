@@ -70,11 +70,11 @@ storage <- function(object = NULL) {
     out <- env$storage[[object]]
 
     # Get object in calling environment if not found in
-    # storage. Waives occur if last statement was an assignment
+    # storage. Null2 occurs if last statement was an assignment
     if (is.null(out))
       tryCatch(get(object, envir = calling_env()), error =
         function(c) stop(c$message, call. = FALSE))
-    else if (is.waive(out))
+    else if (is.null2(out))
       NULL
     else
       out

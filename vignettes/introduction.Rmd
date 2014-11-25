@@ -382,7 +382,7 @@ this end we provide the summarising function in the `out` argument:
 fitted_fun(sequence, out = mean)
 ```
 
-This function can be put to good use for plotting the fitted line
+This function can be put to good use to plot the fitted line
 repeatedly over different simulations to represent posterior
 uncertainty. In the snippet below, we use `replicate()` to call our
 reactive function repeatedly. We also draw the posterior mean in red.
