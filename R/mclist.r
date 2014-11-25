@@ -73,7 +73,7 @@ process_arm_sims <- function(sims) {
   Filter(f = function(x) !(is.null(first(x))), params)
 }
 
-
+#' @importMethodsFrom arm fitted 
 #' @export
 as.mclist.sim.merMod <- function(sims, obj = NULL, ...) {
   mclist <- process_arm_sims(sims)
@@ -124,8 +124,6 @@ set_list_dimnames <- function(list) {
 #' @export
 as.mclist.merMod <- function(x, n_sims = 100) {
   check_packages("arm", "MASS")
-
-  # Circumvent bug (see )
 
   # FIXME: until arm puts mvrnorm in importFrom
   library("MASS")

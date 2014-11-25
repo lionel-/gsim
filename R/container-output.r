@@ -149,7 +149,7 @@ tidy.posterior <- function(x, name = NULL) {
       unlist2(recursive = FALSE) %>%
       ## lapply(dplyr::as_data_frame) %>%
       lapply(as.data.frame) %>%
-      rbind_all
+      (dplyr::rbind_all)
 
     sim_index <- rep(seq_len(n_sims), each = dims[2])
     x <- cbind(sim_index, x)

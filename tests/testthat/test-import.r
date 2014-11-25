@@ -84,6 +84,8 @@ test_that("Simulations from polr objects are correctly imported", {
 
 
 test_that("Simulations from lmer objects are correctly imported", {
+  library("lme4")
+
   radon <- fetch_radon_data()
   radon_lmer_fit <- lmer(y ~ x + u + x:u + (1 + x | county), radon)
 
@@ -105,7 +107,7 @@ test_that("Simulations from lmer objects are correctly imported", {
   expect_is(sims_lmer_direct(P(fitted)), "posterior")
 
 
-  radon2 <- radon %>% mutate(radon = ifelse(radon < mean(radon), 0, 1))
+  radon2 <- radon %>% dplyr::mutate(radon = ifelse(radon < mean(radon), 0, 1))
   radon_glmer_fit <- glmer(radon ~ x + u + x:u + (1 + x | county),
     radon2, binomial)
 

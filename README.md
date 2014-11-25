@@ -1,5 +1,5 @@
 
-# Gorgeous SIMulations
+# gorgeous simulations
 
 gsim is a DSL for statistical simulations. Its goals are:
 

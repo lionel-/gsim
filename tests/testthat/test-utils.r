@@ -8,7 +8,7 @@ test_that("Dynamic lookup", {})
 test_that("`intercept()` recovers correct `n`", {
   x1 <- cbind(intercept(), 1:5)
   x2 <- data.frame(intercept(), 1:5)
-  x3 <- data_frame(intercept(), 1:5)
+  x3 <- dplyr::data_frame(intercept(), 1:5)
   expect_equal(dim(x1)[1], 5)
   expect_equal(dim(x2)[1], 5)
   expect_equal(dim(x3)[1], 5)

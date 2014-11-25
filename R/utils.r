@@ -48,6 +48,11 @@ set_dimnames <- function(x, names) {
   x
 }
 
+set_names <- function(x, ...) {
+  value <- c(...)
+  names(x) <- value
+  x
+}
 
 first <- function(x) {
   x[[1]]

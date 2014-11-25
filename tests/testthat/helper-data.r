@@ -1,6 +1,9 @@
 
 skip_heavy_computations <- TRUE
 
+# Until ARM imports mvrnorm
+library("MASS")
+
 wells <- fetch_wells_data()
 wells_fit <- wells %$% glm(switched ~ c_dist100 * c_arsenic, binomial)
 X <- wells %$% cbind(intercept(), c_dist100, c_arsenic, c_dist100 * c_arsenic)
@@ -13,3 +16,4 @@ new_sims <- gsim(arm_sims, wells)
 radon <- fetch_radon_data()
 radon_sims_file <- system.file("tests", "testthat", "radon-sims.rda",
   package = "gsim")
+
