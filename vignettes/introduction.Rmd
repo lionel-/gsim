@@ -3,10 +3,8 @@
 
 You first create a gsim container with the function `gsim`. A
 container holds the simulations of your parameters as well as any
-relevant data, and executes operations on these objects.
-
-
-The first argument to gsim is the object containing simulations of
+relevant data, and executes operations on these objects. The first
+argument to gsim is the object containing simulations of
 parameters. This object can be:
 
 * A Stan, Jags, or CODA object.
@@ -92,31 +90,31 @@ Here is the code needed to compute the ppc quantities with manual
 loops over simulations.
 
 ```{r}
-  n_sims <- 200
-  n_obs <- nrow(wells_data)
+n_sims <- 200
+n_obs <- nrow(wells_data)
 
-  arm_sims <- arm::sim(wells_fit, n_sims)
-  X <- with(wells_data,
-    cbind(rep(1, n_obs), c_dist100, c_arsenic, c_dist100 * c_arsenic)
-  )
+arm_sims <- arm::sim(wells_fit, n_sims)
+X <- with(wells_data,
+  cbind(rep(1, n_obs), c_dist100, c_arsenic, c_dist100 * c_arsenic)
+)
 
-  fitted <- array(dim = c(n_sims, n_obs))
-  for (i in 1:n_sims) {
-    fitted[i, ] <- inv_logit(X %*% cbind(arm_sims@coef[i, ]))
-  }
+fitted <- array(dim = c(n_sims, n_obs))
+for (i in 1:n_sims) {
+  fitted[i, ] <- inv_logit(X %*% cbind(arm_sims@coef[i, ]))
+}
 
-  residuals <- sweep(fitted, 2, wells_data$switched, function(a, b) b - a)
-  residuals_var <- apply(residuals, 1, var)
+residuals <- sweep(fitted, 2, wells_data$switched, function(a, b) b - a)
+residuals_var <- apply(residuals, 1, var)
 
-  y_rep <- array(dim = c(n_sims, n_obs))
-  residuals_rep <- array(dim = c(n_sims, n_obs))
-  for (i in 1:n_sims) {
-    y_rep[i, ] <- rbinom(n_obs, 1, fitted[i, ])
-    residuals_rep[i, ] <- y_rep[i, ] - fitted[i, ]
-  }
-  residuals_var_rep <- apply(residuals_rep, 1, var)
-  
-  loop_p <- mean(residuals_var > residuals_var_rep)
+y_rep <- array(dim = c(n_sims, n_obs))
+residuals_rep <- array(dim = c(n_sims, n_obs))
+for (i in 1:n_sims) {
+  y_rep[i, ] <- rbinom(n_obs, 1, fitted[i, ])
+  residuals_rep[i, ] <- y_rep[i, ] - fitted[i, ]
+}
+residuals_var_rep <- apply(residuals_rep, 1, var)
+
+loop_p <- mean(residuals_var > residuals_var_rep)
 ```
 
 Looping requires initializing the arrays and subsetting over the
@@ -152,7 +150,7 @@ But the most clarifying feature of gsim is that array instantiation
 and looping are handled internally and transparently.
 
 ```{r}
-p <- wells_sims({
+out <- wells_sims({
   X <- cbind(intercept(), c_dist100, c_arsenic, c_dist100 * c_arsenic)
   fitted <- inv_logit(X %*% col_vector(beta))
   residuals <- switched - fitted
@@ -166,15 +164,13 @@ p <- wells_sims({
 
   summarise_sims(p, mean)
 })
-```
 
-```{r}
-p
+out
 ```
 
 Two things are going on in the last statement. First, since it's not
 an assignment statement, gsim returns the result (which we assigned to
-the variable `p`). Second, it **summarises** the simulations using the
+the variable `out`). Second, it **summarises** the simulations using the
 function provided in the second argument to `summarise_sims()`. In
 this case we simply took the mean over the simulations.
 
