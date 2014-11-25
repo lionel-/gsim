@@ -63,10 +63,22 @@ context_getter <- function(object) {
 
 storage <- function(object = NULL) {
   env <- container_env()
+
   if (is.null(object))
     env$storage
-  else
-    env$storage[[object]]
+  else {
+    out <- env$storage[[object]]
+
+    # Get object in calling environment if not found in
+    # storage. Waives occur if last statement was an assignment
+    if (is.null(out))
+      tryCatch(get(object, envir = calling_env()), error =
+        function(c) stop(c$message, call. = FALSE))
+    else if (is.waive(out))
+      NULL
+    else
+      out
+  }
 }
 
 assign_in_context <- function(object, value) {
@@ -77,7 +89,8 @@ assign_in_context <- function(object, value) {
 
 eval_in_storage <- function(x) {
   env <- container_env()
-  context <- list2env(env$context, parent = asNamespace("gsim"))
+  gsim <- list2env(as.list(asNamespace("gsim")), parent = calling_env())
+  context <- list2env(env$context, parent = gsim)
   storage <- list2env(env$storage, parent = context)
 
   res <- eval(x, storage)

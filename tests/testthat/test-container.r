@@ -2,6 +2,18 @@
 library("gsim")
 testthat::context("Creation and manipulation of containers")
 
+test_that("Scoping issues", {
+  sims <- clone(new_sims)
+
+  expect_error(sims(rotobiscuit(3)), "could not find function")
+  rotobiscuit <- identity
+  expect_identical(sims(rotobiscuit(3)), 3)
+
+  expect_error(sims(rotofoo), "object.*not found")
+  rotofoo <- 3
+  expect_identical(sims(rotofoo), 3)
+})
+
 
 test_that("Cloning a container makes them independent", {
   sims <- clone(new_sims)
@@ -9,9 +21,6 @@ test_that("Cloning a container makes them independent", {
 
   sims2 <- clone(new_sims)
   expect_error(sims2(new_var), "object.*not found")
-
-  sims2(I(beta))
-  new_sims(I(beta))
 })
 
 
@@ -39,21 +48,6 @@ test_that("Listed output protects and names elements", {
   expect_is(out[[1]], "matrix")
   expect_is(out[[2]], "posterior")
   expect_is(out[[3]], "data.frame")
-})
-
-
-test_that("Tidying takes place when appropriate", {
-  sims <- gsim(arm_sims, wells, tidy_output = FALSE)
-
-  out1 <- sims(list(
-    beta,
-    dup = T(beta)
-  ))
-  out2 <- sims(T(sigma))
-
-  expect_is(out1$beta, "matrix")
-  expect_is(out1$dup, "data.frame")
-  expect_is(out2, "data.frame")
 })
 
 

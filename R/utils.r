@@ -136,3 +136,10 @@ I <- function(x) {
   old <- class(x)
   structure(x, class = unique(c("AsIs", old)))
 }
+
+
+# Waiver objects, same function as in ggplot2
+
+waiver <- function() structure(NULL, class = "waiver")
+
+is.waive <- function(x) inherits(x, "waiver")

@@ -68,3 +68,22 @@ test_that("Tidying listed outputs", {
   out3 <- sims(list(I(beta), I(sigma)))
   expect_identical(names(out3), c("beta", "sigma"))
 })
+
+
+test_that("Tidying when default is array output", {
+  sims <- gsim(arm_sims, wells, tidy_output = FALSE)
+
+  out1 <- sims(list(
+    ## beta,
+    dup = T(beta)
+  ))
+
+  # test list with one named element
+
+  out2 <- sims(T(sigma))
+
+  expect_is(out1$beta, "matrix")
+  expect_is(out1$dup, "data.frame")
+  expect_is(out2, "data.frame")
+})
+

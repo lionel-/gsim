@@ -17,12 +17,15 @@ parameters. This object can be:
 * Fitted models (lm, glm, polr, lmer). Gsim then uses `arm::sim` to
 sample parameters from their estimated sampling distribution. In the
 case of `lmer` objects, the advantage of directly supplying the fitted
-model instead of `sim`'s simulations is that gsim can work out the
-fitted values (which are saved in the container under the name
-`fitted`).
+model instead of ARM simulations is that gsim can work out the fitted
+values (in this case they are saved in the container under the name
+*fitted*).
 
-The remaining arguments to `gsim` are lists, data.frames and named
-numeric vectors or arrays, to be saved inside the container.
+The remaining arguments to gsim are objects containing data to be
+saved in the storage space of the container. These can be lists,
+data.frames and named numeric vectors or arrays. It is important that
+each object is named. An unnamed object will linger in the container
+in an invisible state.
 
 
 # Bangladesh Wells example
@@ -61,23 +64,23 @@ example, we'll check for overdispersion of the residuals. The observed
 residual standard deviation is a relevant summary to check this aspect
 of the model. Computing this discrepancy measure is an ideal job for
 gsim because it depends on both the data and the parameters of the
-regression model. Even if the measure depended solely on the data,
+regression model. But even if the measure depended solely on the data,
 gsim can still be useful to sample replicates from the posterior
-predictive distribution (ppd) of the data. We'll need to:
+predictive distribution (ppd) of the data. In this example, we'll need
+to:
 
-* Compute the fitted values.
+* Compute the fitted values. In general, fitted values are a
+  by-product of the MCMC sampling procedure and will already be
+  available along with the simulated parameters. Also, if we supplied
+  a glmer model to gsim, it would have been able to retrieve the
+  fitted values automatically. Here however, we need to compute them
+  manually.
 
 * Compute the observed residual standard deviation.
 
 * Sample replicates from the ppd.
 
 * Compute the residual standard deviation of the replicates.
-
-In general, fitted values are a by-product of posterior simulations
-and will already be available along the simulated parameters. Also, if
-we supplied a glmer model to gsim, it would have been able to retrieve
-the fitted values automatically. Here however, we need to compute them
-manually.
 
 We now illustrate the verbosity of the classical approach based on
 loops before turning to gsim code.
@@ -128,8 +131,8 @@ the code and the math is as small as possible.
 ### Using gsim
 
 Gsim abstracts all the looping verbiage to let the user focus on the
-math. Note also the use of several helper functions provided by gsim
-to enhance the code clarity:
+math. It also provides several helper functions to enhance code
+clarity (note that they all work outside gsim containers as well):
 
 * The `intercept()` function constructs an intercept column. It
   examines the arguments of the surrounding function (here, `cbind()`)
@@ -144,6 +147,9 @@ to enhance the code clarity:
 
 * The `rbernoulli()` wrapper to `rbinom()` makes the code a bit
   clearer. The whole dpqr family of functions is provided in gsim.
+
+But the most clarifying feature of gsim is that array instantiation
+and looping are handled internally and transparently.
 
 ```{r}
 p <- wells_sims({
@@ -192,13 +198,26 @@ p <- wells_sims(p %% median)
 
 ## Retrieving results
 
+Each time an intermediate result is created, it is stored in the
+storage space of the container and can be reused or retrieved
+later. To retrieve a variable or a statement, just make sure that it
+is the last statement. Last statements will be returned
+invisibly. This means that you can't see the result in the console if
+you just call gsim, but you still can assign it to a variable in your
+workspace.
+
+If you want to retrieve several variables from your gsim container,
+you can use listed outputs. Also, gsim tries to produce outputs that
+are easy to work with in a data.frame format. We now review these two
+aspects.
+
+
 ### Listed outputs
 
-Each time an intermediate result is created, it is stored inside the
-container and can be reused or retrieved later. You can pull out
-several variables at once by embedding them in a list. Inside a gsim
-container, `list()` uses non-standard evaluation to work out the names
-of the objects if you didn't specify them manually.
+You can pull out several variables at once by embedding them in a
+list. Inside a gsim container, `list()` uses non-standard evaluation
+to work out the names of the objects if you didn't specify them
+manually.
 
 ```{r fig.align="center"}
 out <- wells_sims(list(p, y_rep))
@@ -228,7 +247,7 @@ name:
 
 ```{r}
 out <- wells_sims(beta + beta)
-head(out)
+names(out)
 ```
 
 The 'long' data.frame format is well suited for ggplot2. You can pivot
@@ -300,41 +319,95 @@ example, you could create a second container with a different model
 including additional predictors. To perform the same check as before,
 only the design matrix *X* needs to be adapted.
 
-A quoted statement can't have a name already taken in a
+A quoted statement can't have a name that is already taken in the
 container. When a gsim container gets a name as an argument, it first
-checks inside its storage space. If it doesn't find one, it checks for
-a quoted statement.
+checks inside its storage space. And only if it doesn't find an object
+with this name will it check for a quoted statement in the calling
+environment.
 
 
-# Reactive outputs
+# Reactive functions
+
+## Basics
 
 A nice feature is the ability to easily plot posterior summaries by
-creating reactive outputs. We signal to create a reactive output by
-creating inputs with `x()`, `y()` and `z()`. These inputs will have
-corresponding arguments in the resulting function.
+creating reactive outputs. To give gsim the signal to create a
+reactive output, we specify inputs with `x()`, `y()` and `z()`. These
+inputs will become arguments in the reactive function.
 
 ```{r}
 wells_sims2 <- gsim(wells_fit, wells_data)
 
-reactive_fun <- wells_sims2({
+fitted_fun <- wells_sims2({
   x <- x()
   X <- cbind(1, x, 2, x * 2)
   inv_logit(X %*% beta)
 })
+class(fitted_fun)
+args(fitted_fun)
 ```
+
+Here we created a function which takes one argument, *x*. We could
+have added other arguments, for example by replacing the second
+predictor in the design matrix with `y()`. Each time you call this
+function with a new *x*, it recomputes the call stack using the new
+input value. Below, we compute the fitted values for a sequence of
+length 5 ranging from 0 to 2:
+
 ```{r}
 sequence <- seq(0, 2, length.out = 5)
-reactive_fun(sequence)
+fitted_fun(sequence)
+```
+
+If we call the function a second time, the fitted sequence will be
+different. Indeed, the reactive function randomly chooses one
+simulation each time it is called.
+
+```{r}
+fitted_fun(sequence)
+```
+
+You can choose a specific simulation with the argument `out`. For
+example, `fitted_fun(sequence, out = 1)` will always return the same
+values, the ones corresponding to the first simulation of parameters.
+
+
+## Plotting fitted models
+
+You can also compute the fitted values over all simulations instead of
+just one, and summarise them with a function of your choosing. But
+keep in mind that this is an expensive operation if you have a lot of
+simulations and a long input sequence: the reactive function will have
+to repeat the computation `n_sims * length(sequence)` times. As an
+example, we'll compute the posterior mean of the fitted values. To
+this end we provide the summarising function in the `out` argument:
+
+```{r}
+fitted_fun(sequence, out = mean)
 ```
 
 This function can be put to good use for plotting the fitted line
-repeatedly, with each line corresponding to a particular simulation.
+repeatedly over different simulations to represent posterior
+uncertainty. In the snippet below, we use `replicate()` to call our
+reactive function repeatedly. We also draw the posterior mean in red.
 
 ```{r fig.align="center"}
-ggplot(wells_data) +
-  geom_point(aes(c_dist100, switched), alpha = 0.2) +
-  replicate(50, stat_function(
-    data = data.frame(x = range(wells_data$c_dist100)),
-    aes(x), fun = reactive_fun, alpha = 0.5
-  ))
+ggplot(wells_data, aes(x = c_dist100)) +
+  geom_point(aes(y = switched), alpha = 0.2) +
+  replicate(50, stat_function(fun = fitted_fun, alpha = 0.5)) +
+  stat_function(fun = fitted_fun, args = list(out = mean),
+    color = "red", size = 1.2)
 ```
+
+If you are a base graphics user, you can call
+`replicate(curve(fitted_fun, add = TRUE))` to produce the same
+spaghetti effect.
+
+
+# Current limitations
+
+* Currently, flow control statements will not work inside gsim (if,
+  for, ...).
+
+* Subsetting parameters with square brackets may work, but has not
+  been tested yet.

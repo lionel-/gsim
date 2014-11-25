@@ -42,6 +42,7 @@ get_output_names <- function(x) {
 
 
 maybe_tidy <- function(x, names) {
+  browser(expr = getOption("debug_on"))
   if (is.protected(x))
     clean_class(x)
 

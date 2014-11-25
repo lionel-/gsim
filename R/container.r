@@ -64,6 +64,10 @@ eval_statement <- function(x, last_statement = FALSE) {
     pass1_assignment(lhs = "_last", rhs = x)
 
   if (last_statement) {
+    # waiver so that storage() recognizes that it should return NULL
+    if (is.assignment(x))
+      assign_in_storage("_last", waiver())
+
     stack <- context("call_stack")
     stack <- pass2_stack(stack)
     clear_call_stack()
