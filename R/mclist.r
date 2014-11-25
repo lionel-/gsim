@@ -195,7 +195,7 @@ as.mclist.jagslist <- function(x) {
 
 #' @describeIn as.mclist Convert Coda simulations to mclist
 #' @export
-#' @importFrom stringr str_extract str_match str_replace_all
+#' @importFrom stringr str_extract str_match str_match_all str_replace_all
 as.mclist.mcmc.list <- function(x, ...) {
   x <- do.call(rbind, x)
   n_sims <- dim(x)[1]

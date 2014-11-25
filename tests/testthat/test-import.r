@@ -150,17 +150,17 @@ test_that("Stan simulations are correctly imported", {
   "
 
   stan_fit <- rstan::stan(model_code = stan_m, data = stan_data, iter = 200)
-  sims_stan <- extract(stan_fit)
+  sims_stan <- rstan::extract(stan_fit)
   sims <- gsim(stan_fit)
   expect_identical_output(sims_stan$beta, sims(I(beta)))
 
 
   stan_radon_data <- c(
-    radon %>% select(y, x, county),
-    radon %>% group_by(county) %>% distinct(u) %>% ungroup %>% select(u),
+    radon %>% dplyr::select(y, x, county),
+    radon %>% dplyr::group_by(county) %>% dplyr::distinct(u) %>% dplyr::ungroup() %>% dplyr::select(u),
     list(
       N = nrow(radon),
-      J = n_distinct(radon$county)
+      J = dplyr::n_distinct(radon$county)
     )
   )
   stan_radon_m <- system.file("tests", "testthat", "radon.stan",
@@ -191,7 +191,7 @@ test_that("Jags and CODA simulations are correctly imported", {
     c_arsenic = c_arsenic,
     switched = switched
   )
-  jags_radon_data <- c(radon %>% select(-radon), list(N = nrow(radon)))
+  jags_radon_data <- c(radon %>% dplyr::select(-radon), list(N = nrow(radon)))
 
   temp_file <- tempfile("jags-test", fileext = ".jag")
   temp_file_single_param <- tempfile("jags-test-single-param", fileext = ".jag")
