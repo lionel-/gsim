@@ -12,4 +12,6 @@ gsim is a DSL for statistical simulations. Its goals are:
 * Help you creating numerical and graphical summaries of parameters
   and fitted models.
 
-Have a look at `vignettes/introduction.html` for a tutorial.
+Have a look at the
+[introduction vignette](https://dl.dropboxusercontent.com/u/239966/gsim.html)
+for a tutorial.
