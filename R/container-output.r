@@ -18,7 +18,30 @@ is.to_tidy <- function(x) {
 }
 
 
-maybe_tidy <- function(x, name) {
+get_output_names <- function(x) {
+  if (is.name(x))
+    as.character(x)
+
+  else if (is.call(x) && x[[1]] == as.name("list")) {
+    x <- x[-1]
+
+    names <- names(x) %||% as.character(x)
+    empty <- names == ""
+    names[empty] <- as.character(x[empty])
+
+    # Remove I(), P() and T()
+    trimmed <- stringr::str_match(names, "^I\\(([^)]+)\\)$")[, 2]
+    names[!is.na(trimmed)] <- trimmed[!is.na(trimmed)]
+
+    names
+  }
+
+  else
+    NULL
+}
+
+
+maybe_tidy <- function(x, names) {
   if (is.protected(x))
     clean_class(x)
 
@@ -36,13 +59,17 @@ maybe_tidy <- function(x, name) {
       else
         papply(x, is.to_tidy)
 
+    # Need to wrap tidy in a function to avoid lapply/mapply dispatching bug
     x[is_to_clean] <- lapply(x[is_to_clean], clean_class)
-    x[is_to_tidy] <- lapply(x[is_to_tidy], tidy, name)
+    x[is_to_tidy] <- Map(function(item, name) tidy(item, name),
+      item = x[is_to_tidy], name = names[is_to_tidy] %||% NULL)
+
+    names(x) <- make.names(names)
     x
   }
 
   else if (context("tidy_output") || is.to_tidy(x))
-    tidy(x, name)
+    tidy(x, names)
 
   else if (is.posterior(x))
     clean_class(x)
@@ -83,28 +110,46 @@ tidy.numeric <- function(x, name = NULL) {
 }
 
 tidy.posterior <- function(x, name = NULL) {
+  if (is.null(dim(x)))
+    dim(x) <- length(x)
   dims <- dim(x)
-  if (is.null(dims) || length(dims) == 1)
-    dim(x) <- dims <- c(length(x), 1)
+  while ((last(dims) == 1) %||% FALSE)
+    dims <- dims[-length(dims)]
 
   class(x) <- "array"
   n_dims <- length(dims)
-  n_sims <- dim(x)[1]
+  n_sims <- dims[1]
 
   if (n_dims %in% c(1, 2)) {
-    x <- data.frame(sim = seq_len(n_sims), x)
-    names(x)[-1] <- make_names(x[-1], name)
+    name <- name %||% "theta"
+    names <-
+      if (!is.null(colnames(x)))
+        colnames(x)
+      else if (n_dims == 1)
+        name
+      else
+        make_names(name, seq_len(dims[2]))
+
+    x <- data.frame(seq_len(n_sims), x)
+    names(x) <- c("sim", names)
+
+    if (n_dims == 2)
+      x <- tidyr::gather_(x, name, "value", names(x)[-1])
   }
+
+
   else if (n_dims == 3) {
     x <- apply(x, 1, list) %>%
       unlist2(recursive = FALSE) %>%
+      ## lapply(dplyr::as_data_frame) %>%
       lapply(as.data.frame) %>%
       rbind_all
 
     sim_index <- rep(seq_len(n_sims), each = dims[2])
     x <- cbind(sim_index, x)
-    names(x) <- c("sim", make_names(x[-1], name))
+    names(x) <- c("sim", make_names(name, seq_along(x[-1])))
   }
+
   else {
     x <- melt(x)
     names(x) <- c("sim", paste0("dim", seq_len(n_dims - 1)), "value")
@@ -113,12 +158,15 @@ tidy.posterior <- function(x, name = NULL) {
   x
 }
 
-make_names <- function(x, name = NULL) {
-  if (is.null(name))
-    name <- "col"
-  
-  if (length(x) == 1)
+make_names <- function(name, seq) {
+  name <- name %||% "theta"
+
+  ends_numeric <- stringr::str_sub(name, -1) %in% as.character(0:9)
+  if (ends_numeric)
+    name <- paste0(name, "_")
+
+  if (length(seq) == 1)
     name
   else
-    paste0(name, seq_along(x))
+    paste0(name, seq)
 }

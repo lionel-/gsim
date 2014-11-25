@@ -11,6 +11,7 @@ Imports:
     dplyr (>= 0.2)
 Suggests:
     arm,
+    MASS,
     rstan,
     rjags,
     knitr,

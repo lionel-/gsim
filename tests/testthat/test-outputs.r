@@ -31,7 +31,7 @@ test_that("Simple function, vectorized and unvectorized", {
 test_that("Posterior predictive checks", {
   loop_fitted <- array(dim = c(n_sims, 3020))
   for (i in 1:n_sims) {
-    loop_fitted[i, ] <- arm::invlogit(X %*% cbind(arm_sims@coef[i, ]))
+    loop_fitted[i, ] <- inv_logit(X %*% cbind(arm_sims@coef[i, ]))
   }
 
   loop_residuals <- sweep(loop_fitted, 2, wells$switched, function(a, b) b - a)
@@ -55,10 +55,9 @@ test_that("Posterior predictive checks", {
 
 
   sims <- clone(new_sims)
-  sims <- gsim(arm_sims, wells)
   out <- sims({
     X <- cbind(intercept(), c_dist100, c_arsenic, c_dist100 * c_arsenic)
-    fitted <- arm::invlogit(X %*% col_vector(beta))
+    fitted <- inv_logit(X %*% col_vector(beta))
     residuals <- switched - fitted
     residuals_var <- var(residuals)
 

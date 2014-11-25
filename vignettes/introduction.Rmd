@@ -6,47 +6,50 @@ container holds the simulations of your parameters as well as any
 relevant data, and executes operations on these objects.
 
 
-The first argument to `gsim` is the object containing simulations of
+The first argument to gsim is the object containing simulations of
 parameters. This object can be:
 
 * A Stan, Jags, or CODA object.
 
-* `arm::sim` simulations. The simulations are saved in the container
-  under the names `beta` and `sigma`.
+* Simulations created by `sim` from the ARM package. The simulations
+  are saved in the container under the names `beta` and `sigma`.
 
 * Fitted models (lm, glm, polr, lmer). Gsim then uses `arm::sim` to
 sample parameters from their estimated sampling distribution. In the
-case of `lmer` objects, the advantage of supplying the fitted model
-instead of ARM simulations is that gsim can work out the fitted values
-(which are saved in the container under the name `fitted`).
+case of `lmer` objects, the advantage of directly supplying the fitted
+model instead of `sim`'s simulations is that gsim can work out the
+fitted values (which are saved in the container under the name
+`fitted`).
 
 The remaining arguments to `gsim` are lists, data.frames and named
 numeric vectors or arrays, to be saved inside the container.
 
 
-# Wells example
+# Bangladesh Wells example
 
 In this vignette, we'll first work with the Bangladesh Wells dataset
 described in
 [Gelman and Hill's textbook](http://www.amazon.com/Analysis-Regression-Multilevel-Hierarchical-Models/dp/052168689X).
-This dataset can be retrieved using the `fetch_wells_data` script.
-
-For simplicity, we'll fit a classical logistic model and sample from
-the sampling distribution of the parameters, but you can of course
-supply real posterior simulations to gsim.
+This dataset can be retrieved using the `fetch_wells_data()` script.
+For simplicity, we'll fit a classical logistic model and use a crude
+approximation of the posterior distribution of the parameters obtained
+through the `sim()` function from the ARM package.
 
 ```{r}
+library(gsim)
 wells_data <- fetch_wells_data()
-wells_fit <- glm(switched ~ c_dist100 * c_arsenic, binomial, wells)
-sims <- gsim(wells_fit, wells_data)
+wells_fit <- glm(switched ~ c_dist100 * c_arsenic, binomial, wells_data)
+wells_sims <- gsim(wells_fit, wells_data, n_sims = 200)
 ```
 
-Once the container created, you can check its contents using `print()`
-and `summary()`.
+In the last command, gsim sampled 200 simulations from the estimated
+sampling distribution of the parameters, and made the columns of
+`wells_data` available inside the container. Once the container is
+created, you can check its contents using `print()`, `summary()`, and
+`head()`.
 
 ```{r}
-print(sims)
-summary(sims)
+print(wells_sims)
 ```
 
 
@@ -54,38 +57,96 @@ summary(sims)
 
 Gsim is most useful to easily create statistical summaries depending
 on data and parameters that can be used to check the model. In this
-example, we'll check for overdispersion of the residuals.
-
-The observed residual standard deviation is relevant to check this
-aspect of the model. Computing this discrepancy measure is an ideal
-job for gsim because it depends on both the data and the parameters of
-the regression model. Even if the measure depended solely on the data,
+example, we'll check for overdispersion of the residuals. The observed
+residual standard deviation is a relevant summary to check this aspect
+of the model. Computing this discrepancy measure is an ideal job for
+gsim because it depends on both the data and the parameters of the
+regression model. Even if the measure depended solely on the data,
 gsim can still be useful to sample replicates from the posterior
-predictive distribution (ppd) of the data.
+predictive distribution (ppd) of the data. We'll need to:
 
-We'll need to:
 * Compute the fitted values.
+
 * Compute the observed residual standard deviation.
+
 * Sample replicates from the ppd.
+
 * Compute the residual standard deviation of the replicates.
+
+In general, fitted values are a by-product of posterior simulations
+and will already be available along the simulated parameters. Also, if
+we supplied a glmer model to gsim, it would have been able to retrieve
+the fitted values automatically. Here however, we need to compute them
+manually.
+
+We now illustrate the verbosity of the classical approach based on
+loops before turning to gsim code.
+
+
+### Using loops
+
+Here is the code needed to compute the ppc quantities with manual
+loops over simulations.
+
+```{r}
+  n_sims <- 200
+  n_obs <- nrow(wells_data)
+
+  arm_sims <- arm::sim(wells_fit, n_sims)
+  X <- with(wells_data,
+    cbind(rep(1, n_obs), c_dist100, c_arsenic, c_dist100 * c_arsenic)
+  )
+
+  fitted <- array(dim = c(n_sims, n_obs))
+  for (i in 1:n_sims) {
+    fitted[i, ] <- inv_logit(X %*% cbind(arm_sims@coef[i, ]))
+  }
+
+  residuals <- sweep(fitted, 2, wells_data$switched, function(a, b) b - a)
+  residuals_var <- apply(residuals, 1, var)
+
+  y_rep <- array(dim = c(n_sims, n_obs))
+  residuals_rep <- array(dim = c(n_sims, n_obs))
+  for (i in 1:n_sims) {
+    y_rep[i, ] <- rbinom(n_obs, 1, fitted[i, ])
+    residuals_rep[i, ] <- y_rep[i, ] - fitted[i, ]
+  }
+  residuals_var_rep <- apply(residuals_rep, 1, var)
+  
+  loop_p <- mean(residuals_var > residuals_var_rep)
+```
+
+Looping requires initializing the arrays and subsetting over the
+correct dimensions. Sometimes, we can use functionals such as
+`apply()` or `sweep()` to avoid looping, but this does not necessarily
+clarify the code. The verbosity of the code distracts the analyst from
+thinking about his modeling and checking tasks. Gsim aims to provide a
+framework for operating on parameters in which the distance between
+the code and the math is as small as possible.
 
 
 ### Using gsim
 
-In general, fitted values are a by-product of posterior simulations
-and we'll already be available. Also, if we used a glmer model, gsim
-would have been able to retrieve the fitted values
-automatically. Since this is not the case here, we need to compute
-them manually.
+Gsim abstracts all the looping verbiage to let the user focus on the
+math. Note also the use of several helper functions provided by gsim
+to enhance the code clarity:
 
-Note the use of gsim's `intercept()` function to construct the
-intercept column. It examines the arguments of the surrounding
-function (here, `cbind`) to figure out automatically the length of the
-vector of 1's. Gsim also provides a `rbernoulli` wrapper to `rbinom`
-to make the intent of the code clearer.
+* The `intercept()` function constructs an intercept column. It
+  examines the arguments of the surrounding function (here, `cbind()`)
+  to figure out automatically the length of the vector of 1's.
+
+* The `inv_logit()` function to transform the linear predictor back to
+  the scale of the outcome variable.
+
+* The `col_vector()` wrapper to `cbind()` is a clearer semantic signal
+  that you want to turn a vector into a column vector (an array of
+  size n x 1). `row_vector()` is also available.
+
+* The `rbernoulli()` wrapper to `rbinom()` makes the code a bit
+  clearer. The whole dpqr family of functions is provided in gsim.
 
 ```{r}
-p <- sims({
+p <- wells_sims({
   X <- cbind(intercept(), c_dist100, c_arsenic, c_dist100 * c_arsenic)
   fitted <- inv_logit(X %*% col_vector(beta))
   residuals <- switched - fitted
@@ -95,24 +156,185 @@ p <- sims({
   residuals_rep <- y_rep - fitted
   residuals_sd_rep <- sd(residuals_rep)
 
-  summarise_sims(residuals_sd > residuals_sd_rep, mean)
-})
+  p <- residuals_sd > residuals_sd_rep
 
+  summarise_sims(p, mean)
+})
+```
+
+```{r}
 p
 ```
 
-Last step shortcut.
+Two things are going on in the last statement. First, since it's not
+an assignment statement, gsim returns the result (which we assigned to
+the variable `p`). Second, it **summarises** the simulations using the
+function provided in the second argument to `summarise_sims()`. In
+this case we simply took the mean over the simulations.
 
+This operation is thus different from all the others. Each time a
+command operating on parameters is issued, it is normally repeated
+`n_sims` times (unless some optimisation takes place for specific
+kinds of operations). On the other hand, summarise_sims will apply
+the summarising function `n` times, over the simulations.
 
-### Using loops
+We have taken the posterior mean of the p-values, but we could have
+chosen the median or some quantiles. To facilitate this operation,
+gsim provides a shortcut by overloading the modulo operator.
 
-In comparison, here is the code needed to compute the ppc quantities
-with manual loops over simulations. The code is much more verbose and
-the mathematical content less clear.
 
 ```{r}
-
+p <- wells_sims(p %% median)
 ```
 
 
-### Reusable statements
+# Working with gsim
+
+## Retrieving results
+
+### Listed outputs
+
+Each time an intermediate result is created, it is stored inside the
+container and can be reused or retrieved later. You can pull out
+several variables at once by embedding them in a list. Inside a gsim
+container, `list()` uses non-standard evaluation to work out the names
+of the objects if you didn't specify them manually.
+
+```{r fig.align="center"}
+out <- wells_sims(list(p, y_rep))
+names(out)
+```
+
+### Tidy outputs
+
+By default, gsim will transform any output with more than one
+dimension (i.e., everything except atomics and vectors) into
+data.frames. This makes it easy to interoperate with processing
+packages designed to work with this kind of data structures: `dplyr`,
+`tidyr`, `ggplot2`, `ggvis`, etc.
+
+```{r}
+beta <- wells_sims(beta)
+class(beta)
+head(beta)
+```
+ 
+Gsim uses non-standard evaluation to figure out good column
+names. When it cannot find an appropriate name, it uses the default
+*theta*. It is therefore important to choose appropriate object names
+and to avoid returning an operation without having first saved it a
+well named object. Here is an example of gsim resorting to a default
+name:
+
+```{r}
+out <- wells_sims(beta + beta)
+head(out)
+```
+
+The 'long' data.frame format is well suited for ggplot2. You can pivot
+on the variable *beta* to plot the posterior density of each
+coefficient in a facet grid.
+
+```{r echo=FALSE}
+library("ggplot2")
+theme_set(theme_bw())
+```
+```{r message=FALSE, warning=FALSE, fig.align="center"}
+library("ggplot2")
+ggplot(beta, aes(value)) +
+  geom_histogram() +
+  facet_wrap(~ beta, scales = "free")
+```
+
+This behavior can be controlled in several ways:
+
+* The transformation can be inhibited by wrapping the return statement
+  with `I()`: `wells_sims(I(beta))` returns a matrix. The simulations
+  always occupy the first dimension of the arrays returned by gsim.
+
+* If you want gsim to always return arrays, you can set the
+  `tidy_ouput` argument to FALSE when you create a container:
+  `wells_sims <- gsim(wells_fit, tidy_output = FALSE)`. Then, you can
+  selectively transform outputs to data.frames by wrapping the return
+  statement with `T()`.
+
+Note that `list()` trims the names from their modifiers.
+
+```{r}
+out <- wells_sims(list(I(beta), I(sigma)))
+names(out)
+```
+
+
+## Reusable statements
+
+You can quote a statement or a group of statements and save the quote
+for later use. To save a single statement, just quote it:
+
+```{r}
+X_op <- quote(X <- cbind(intercept(), c_dist100, c_arsenic, c_dist100 * c_arsenic))
+```
+
+To save several statements, wrap them in curly braces before quoting
+them:
+
+```{r}
+sd_check_ops <- quote({
+  fitted <- inv_logit(X %*% col_vector(beta))
+  residuals <- switched - fitted
+  residuals_sd <- sd(residuals)
+
+  y_rep <- rbernoulli(3020, fitted)
+  residuals_rep <- y_rep - fitted
+  residuals_sd_rep <- sd(residuals_rep)
+})
+```
+
+You then supply the quotes to a gsim container:
+```{r}
+wells_sims(X_op, sd_check_ops)
+```
+
+This can be useful to perform similar checks on different models. For
+example, you could create a second container with a different model
+including additional predictors. To perform the same check as before,
+only the design matrix *X* needs to be adapted.
+
+A quoted statement can't have a name already taken in a
+container. When a gsim container gets a name as an argument, it first
+checks inside its storage space. If it doesn't find one, it checks for
+a quoted statement.
+
+
+# Reactive outputs
+
+A nice feature is the ability to easily plot posterior summaries by
+creating reactive outputs. We signal to create a reactive output by
+creating inputs with `x()`, `y()` and `z()`. These inputs will have
+corresponding arguments in the resulting function.
+
+```{r}
+wells_sims2 <- gsim(wells_fit, wells_data)
+
+reactive_fun <- wells_sims2({
+  x <- x()
+  X <- cbind(1, x, 2, x * 2)
+  inv_logit(X %*% beta)
+})
+```
+```{r}
+sequence <- seq(0, 2, length.out = 5)
+reactive_fun(sequence)
+```
+
+This function can be put to good use for plotting the fitted line
+repeatedly, with each line corresponding to a particular simulation.
+
+```{r fig.align="center"}
+ggplot(wells_data) +
+  geom_point(aes(c_dist100, switched), alpha = 0.2) +
+  replicate(50, stat_function(
+    data = data.frame(x = range(wells_data$c_dist100)),
+    aes(x), fun = reactive_fun, alpha = 0.5
+  ))
+```

@@ -34,12 +34,8 @@ container <- function(...) {
 
   res <- eval_curly(curly)
 
-  out_name <- 
-    if (is.name(last(dots)))
-      as.character(last(dots))
-    else
-      NULL
-  res <- maybe_tidy(res, out_name)
+  out_names <- get_output_names(last(dots))
+  res <- maybe_tidy(res, out_names)
 
   if (is.reactive_fun(res))
     clear_reactive_data()

@@ -159,11 +159,12 @@ rbind_cols <- function(object) {
 
 #' Quantile helper functions
 #'
-#' These functions provide shortcuts to obtain particular quantiles.
-#'
+#' These functions provide shortcuts to compute specific quantiles of
+#' a numeric vector.
 #' @name quantiles
 #' @param x numeric vector.
-#'
+NULL
+
 #' @rdname quantiles
 #' @export
 q025 <- function(x) {
@@ -187,4 +188,36 @@ get_omega <- function(resid, sigma) {
 #' @export
 inv_logit <- function(x) {
   1 / (1 + exp(-x))
+}
+
+
+#' Bernoulli distribution wrappers
+#'
+#' Wrappers for dbinom, pbinom, qbinom and rbinom. Specify
+#' \code{size = 1}.
+#' @name Bernoulli
+NULL
+
+#' @rdname Bernoulli
+#' @export
+dbernoulli <- function(n, prob, log = FALSE) {
+  dbinom(x, size = 1, prob, log)
+}
+
+#' @rdname Bernoulli
+#' @export
+pbernoulli <- function(n, prob, lower.tail = TRUE, log.p = FALSE) {
+  pbinom(q, size = 1, prob, lower.tail, log.p)
+}
+
+#' @rdname Bernoulli
+#' @export
+qbernoulli <- function(n, prob, lower.tail = TRUE, log.p = FALSE) {
+  qbinom(n, size = 1, prob, lower.tail, log.p)
+}
+
+#' @rdname Bernoulli
+#' @export
+rbernoulli <- function(n, prob) {
+  rbinom(n, size = 1, prob)
 }

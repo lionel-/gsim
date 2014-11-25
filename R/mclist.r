@@ -9,6 +9,7 @@
 #' @return An mclist. This is a list of posterior simulations with one
 #' element per parameter. Each list element is an array whose the
 #' first dimension represents the simulations.
+#' @export
 as.mclist <- function(x, ...) {
   UseMethod("as.mclist")
 }
@@ -45,9 +46,11 @@ as.mclist.sim.polr <- function(sims, ...) {
 #' to mclist
 #' @export
 as.mclist.lm <- function(x, n_sims = 100) {
-  if (!requireNamespace("arm", quietly = TRUE))
-    stop("The package arm must be installed to process fitted models",
-      call. = FALSE)
+  check_packages("arm", "MASS")
+
+  # FIXME: until arm puts mvrnorm in importFrom
+  library("MASS")
+
   sims <- arm::sim(x, n.sims = n_sims)
   as.mclist.sim(sims)
 }
@@ -63,11 +66,11 @@ as.mclist.glm <- as.mclist.lm
 as.mclist.polr <- as.mclist.lm
 
 process_arm_sims <- function(sims) {
-  params <- slotNames(sims)
+  p_names <- slotNames(sims)
 
-  lapply(params, function(param) slot(sims, param)) %>%
-    set_names(params) %>%
-    Filter(f = function(x) !(is.null(first(x))))
+  params <- lapply(p_names, function(param) slot(sims, param))
+  names(params) <- p_names
+  Filter(f = function(x) !(is.null(first(x))), params)
 }
 
 
@@ -120,9 +123,12 @@ set_list_dimnames <- function(list) {
 #' convert to mclist
 #' @export
 as.mclist.merMod <- function(x, n_sims = 100) {
-  if (!requireNamespace("arm", quietly = TRUE))
-    stop("The package arm must be installed to process lm/glm objects",
-      call. = FALSE)
+  check_packages("arm", "MASS")
+
+  # Circumvent bug (see )
+
+  # FIXME: until arm puts mvrnorm in importFrom
+  library("MASS")
 
   sims <- arm::sim(x, n.sims = n_sims)
   as.mclist.sim.merMod(sims, x)
@@ -217,7 +223,6 @@ as.mclist.mcmc.list <- function(x, ...) {
   }, unique(p_names), p_start)
 
   mclist <- lapply(p_indices, function(index) {
-    browser(expr = getOption("debug_on"))
     ind <- indices[index]
     ind <- do.call(rbind, ind)
 

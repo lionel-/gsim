@@ -73,7 +73,7 @@ reactive_fun <- function() {
   compute <- compute
   environment(compute) <- environment()
 
-  # Using Map with do.call to allow vector inputs
+  # Using Map with do.call to vectorize over inputs
   res <- do.call(Map, c(list(f = compute), inputs))
   unlist2(res, recursive = FALSE)
 }

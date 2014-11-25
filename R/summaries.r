@@ -12,7 +12,8 @@ summarise_sims <- function(x, fun) {
   for (i in seq_len(len))
     res[i] <- fun(x[seq(i, nsims * len - (len - i), by = len)])
 
-  dim(res) <- dims[-1] %||% 1
+  class(res) <- "numeric"
+  dim(res) <- dims[-1] %||% NULL
   res
 }
 

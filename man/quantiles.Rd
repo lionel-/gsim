@@ -13,6 +13,7 @@ q975(x)
 \item{x}{numeric vector.}
 }
 \description{
-These functions provide shortcuts to obtain particular quantiles.
+These functions provide shortcuts to compute specific quantiles of
+a numeric vector.
 }
 
