@@ -15,3 +15,9 @@ gsim is a DSL for statistical simulations. Its goals are:
 Have a look at the
 [introduction vignette](https://dl.dropboxusercontent.com/u/239966/gsim.html)
 for a tutorial.
+
+To install the package:
+
+```{r}
+devtools::install_github("lionelgit/gsim")
+```
