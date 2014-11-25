@@ -190,227 +190,227 @@ p <- wells_sims(p %% median)
 ```
 
 
-<!-- # Working with gsim -->
+# Working with gsim
 
-<!-- ## Retrieving results -->
+## Retrieving results
 
-<!-- Each time an intermediate result is created, it is stored in the -->
-<!-- storage space of the container and can be reused or retrieved -->
-<!-- later. To retrieve a variable or a statement, just make sure that it -->
-<!-- is the last statement. Last statements will be returned -->
-<!-- invisibly. This means that you can't see the result in the console if -->
-<!-- you just call gsim, but you still can assign it to a variable in your -->
-<!-- workspace. -->
+Each time an intermediate result is created, it is stored in the
+storage space of the container and can be reused or retrieved
+later. To retrieve a variable or a statement, just make sure that it
+is the last statement. Last statements will be returned
+invisibly. This means that you can't see the result in the console if
+you just call gsim, but you still can assign it to a variable in your
+workspace.
 
-<!-- If you want to retrieve several variables from your gsim container, -->
-<!-- you can use listed outputs. Also, gsim tries to produce outputs that -->
-<!-- are easy to work with in a data.frame format. We now review these two -->
-<!-- aspects. -->
+If you want to retrieve several variables from your gsim container,
+you can use listed outputs. Also, gsim tries to produce outputs that
+are easy to work with in a data.frame format. We now review these two
+aspects.
 
 
-<!-- ### Listed outputs -->
+### Listed outputs
 
-<!-- You can pull out several variables at once by embedding them in a -->
-<!-- list. Inside a gsim container, `list()` uses non-standard evaluation -->
-<!-- to work out the names of the objects if you didn't specify them -->
-<!-- manually. -->
+You can pull out several variables at once by embedding them in a
+list. Inside a gsim container, `list()` uses non-standard evaluation
+to work out the names of the objects if you didn't specify them
+manually.
 
-<!-- ```{r fig.align="center"} -->
-<!-- out <- wells_sims(list(p, y_rep)) -->
-<!-- names(out) -->
-<!-- ``` -->
+```{r fig.align="center"}
+out <- wells_sims(list(p, y_rep))
+names(out)
+```
 
-<!-- ### Tidy outputs -->
+### Tidy outputs
 
-<!-- By default, gsim will transform any output with more than one -->
-<!-- dimension (i.e., everything except atomics and vectors) into -->
-<!-- data.frames. This makes it easy to interoperate with processing -->
-<!-- packages designed to work with this kind of data structures: `dplyr`, -->
-<!-- `tidyr`, `ggplot2`, `ggvis`, etc. -->
+By default, gsim will transform any output with more than one
+dimension (i.e., everything except atomics and vectors) into
+data.frames. This makes it easy to interoperate with processing
+packages designed to work with this kind of data structures: `dplyr`,
+`tidyr`, `ggplot2`, `ggvis`, etc.
 
-<!-- ```{r} -->
-<!-- beta <- wells_sims(beta) -->
-<!-- class(beta) -->
-<!-- head(beta) -->
-<!-- ``` -->
+```{r}
+beta <- wells_sims(beta)
+class(beta)
+head(beta)
+```
  
-<!-- Gsim uses non-standard evaluation to figure out good column -->
-<!-- names. When it cannot find an appropriate name, it uses the default -->
-<!-- *theta*. It is therefore important to choose appropriate object names -->
-<!-- and to avoid returning an operation without having first saved it a -->
-<!-- well named object. Here is an example of gsim resorting to a default -->
-<!-- name: -->
+Gsim uses non-standard evaluation to figure out good column
+names. When it cannot find an appropriate name, it uses the default
+*theta*. It is therefore important to choose appropriate object names
+and to avoid returning an operation without having first saved it a
+well named object. Here is an example of gsim resorting to a default
+name:
 
-<!-- ```{r} -->
-<!-- out <- wells_sims(beta + beta) -->
-<!-- names(out) -->
-<!-- ``` -->
+```{r}
+out <- wells_sims(beta + beta)
+names(out)
+```
 
-<!-- The 'long' data.frame format is well suited for ggplot2. You can pivot -->
-<!-- on the variable *beta* to plot the posterior density of each -->
-<!-- coefficient in a facet grid. -->
+The 'long' data.frame format is well suited for ggplot2. You can pivot
+on the variable *beta* to plot the posterior density of each
+coefficient in a facet grid.
 
-<!-- ```{r echo=FALSE} -->
-<!-- library("ggplot2") -->
-<!-- theme_set(theme_bw()) -->
-<!-- ``` -->
-<!-- ```{r message=FALSE, warning=FALSE, fig.align="center"} -->
-<!-- library("ggplot2") -->
-<!-- ggplot(beta, aes(value)) + -->
-<!--   geom_histogram() + -->
-<!--   facet_wrap(~ beta, scales = "free") -->
-<!-- ``` -->
+```{r echo=FALSE}
+library("ggplot2")
+theme_set(theme_bw())
+```
+```{r message=FALSE, warning=FALSE, fig.align="center"}
+library("ggplot2")
+ggplot(beta, aes(value)) +
+  geom_histogram() +
+  facet_wrap(~ beta, scales = "free")
+```
 
-<!-- This behavior can be controlled in several ways: -->
+This behavior can be controlled in several ways:
 
-<!-- * The transformation can be inhibited by wrapping the return statement -->
-<!--   with `I()`: `wells_sims(I(beta))` returns a matrix. The simulations -->
-<!--   always occupy the first dimension of the arrays returned by gsim. -->
+* The transformation can be inhibited by wrapping the return statement
+  with `I()`: `wells_sims(I(beta))` returns a matrix. The simulations
+  always occupy the first dimension of the arrays returned by gsim.
 
-<!-- * If you want gsim to always return arrays, you can set the -->
-<!--   `tidy_ouput` argument to FALSE when you create a container: -->
-<!--   `wells_sims <- gsim(wells_fit, tidy_output = FALSE)`. Then, you can -->
-<!--   selectively transform outputs to data.frames by wrapping the return -->
-<!--   statement with `T()`. -->
+* If you want gsim to always return arrays, you can set the
+  `tidy_ouput` argument to FALSE when you create a container:
+  `wells_sims <- gsim(wells_fit, tidy_output = FALSE)`. Then, you can
+  selectively transform outputs to data.frames by wrapping the return
+  statement with `T()`.
 
-<!-- Note that `list()` trims the names from their modifiers. -->
+Note that `list()` trims the names from their modifiers.
 
-<!-- ```{r} -->
-<!-- out <- wells_sims(list(I(beta), I(sigma))) -->
-<!-- names(out) -->
-<!-- ``` -->
-
-
-<!-- ## Reusable statements -->
-
-<!-- You can quote a statement or a group of statements and save the quote -->
-<!-- for later use. To save a single statement, just quote it: -->
-
-<!-- ```{r} -->
-<!-- X_op <- quote(X <- cbind(intercept(), c_dist100, c_arsenic, c_dist100 * c_arsenic)) -->
-<!-- ``` -->
-
-<!-- To save several statements, wrap them in curly braces before quoting -->
-<!-- them: -->
-
-<!-- ```{r} -->
-<!-- sd_check_ops <- quote({ -->
-<!--   fitted <- inv_logit(X %*% col_vector(beta)) -->
-<!--   residuals <- switched - fitted -->
-<!--   residuals_sd <- sd(residuals) -->
-
-<!--   y_rep <- rbernoulli(3020, fitted) -->
-<!--   residuals_rep <- y_rep - fitted -->
-<!--   residuals_sd_rep <- sd(residuals_rep) -->
-<!-- }) -->
-<!-- ``` -->
-
-<!-- You then supply the quotes to a gsim container: -->
-<!-- ```{r} -->
-<!-- wells_sims(X_op, sd_check_ops) -->
-<!-- ``` -->
-
-<!-- This can be useful to perform similar checks on different models. For -->
-<!-- example, you could create a second container with a different model -->
-<!-- including additional predictors. To perform the same check as before, -->
-<!-- only the design matrix *X* needs to be adapted. -->
-
-<!-- A quoted statement can't have a name that is already taken in the -->
-<!-- container. When a gsim container gets a name as an argument, it first -->
-<!-- checks inside its storage space. And only if it doesn't find an object -->
-<!-- with this name will it check for a quoted statement in the calling -->
-<!-- environment. -->
+```{r}
+out <- wells_sims(list(I(beta), I(sigma)))
+names(out)
+```
 
 
-<!-- # Reactive functions -->
+## Reusable statements
 
-<!-- ## Basics -->
+You can quote a statement or a group of statements and save the quote
+for later use. To save a single statement, just quote it:
 
-<!-- A nice feature is the ability to easily plot posterior summaries by -->
-<!-- creating reactive outputs. To give gsim the signal to create a -->
-<!-- reactive output, we specify inputs with `x()`, `y()` and `z()`. These -->
-<!-- inputs will become arguments in the reactive function. -->
+```{r}
+X_op <- quote(X <- cbind(intercept(), c_dist100, c_arsenic, c_dist100 * c_arsenic))
+```
 
-<!-- ```{r} -->
-<!-- wells_sims2 <- gsim(wells_fit, wells_data) -->
+To save several statements, wrap them in curly braces before quoting
+them:
 
-<!-- fitted_fun <- wells_sims2({ -->
-<!--   x <- x() -->
-<!--   X <- cbind(1, x, 2, x * 2) -->
-<!--   inv_logit(X %*% beta) -->
-<!-- }) -->
-<!-- class(fitted_fun) -->
-<!-- args(fitted_fun) -->
-<!-- ``` -->
+```{r}
+sd_check_ops <- quote({
+  fitted <- inv_logit(X %*% col_vector(beta))
+  residuals <- switched - fitted
+  residuals_sd <- sd(residuals)
 
-<!-- Here we created a function which takes one argument, *x*. We could -->
-<!-- have added other arguments, for example by replacing the second -->
-<!-- predictor in the design matrix with `y()`. Each time you call this -->
-<!-- function with a new *x*, it recomputes the call stack using the new -->
-<!-- input value. Below, we compute the fitted values for a sequence of -->
-<!-- length 5 ranging from 0 to 2: -->
+  y_rep <- rbernoulli(3020, fitted)
+  residuals_rep <- y_rep - fitted
+  residuals_sd_rep <- sd(residuals_rep)
+})
+```
 
-<!-- ```{r} -->
-<!-- sequence <- seq(0, 2, length.out = 5) -->
-<!-- fitted_fun(sequence) -->
-<!-- ``` -->
+You then supply the quotes to a gsim container:
+```{r}
+wells_sims(X_op, sd_check_ops)
+```
 
-<!-- If we call the function a second time, the fitted sequence will be -->
-<!-- different. Indeed, the reactive function randomly chooses one -->
-<!-- simulation each time it is called. -->
+This can be useful to perform similar checks on different models. For
+example, you could create a second container with a different model
+including additional predictors. To perform the same check as before,
+only the design matrix *X* needs to be adapted.
 
-<!-- ```{r} -->
-<!-- fitted_fun(sequence) -->
-<!-- ``` -->
-
-<!-- You can choose a specific simulation with the argument `out`. For -->
-<!-- example, `fitted_fun(sequence, out = 1)` will always return the same -->
-<!-- values, the ones corresponding to the first simulation of parameters. -->
+A quoted statement can't have a name that is already taken in the
+container. When a gsim container gets a name as an argument, it first
+checks inside its storage space. And only if it doesn't find an object
+with this name will it check for a quoted statement in the calling
+environment.
 
 
-<!-- ## Plotting fitted models -->
+# Reactive functions
 
-<!-- You can also compute the fitted values over all simulations instead of -->
-<!-- just one, and summarise them with a function of your choosing. But -->
-<!-- keep in mind that this is an expensive operation if you have a lot of -->
-<!-- simulations and a long input sequence: the reactive function will have -->
-<!-- to repeat the computation `n_sims * length(sequence)` times. As an -->
-<!-- example, we'll compute the posterior mean of the fitted values. To -->
-<!-- this end we provide the summarising function in the `out` argument: -->
+## Basics
 
-<!-- ```{r} -->
-<!-- fitted_fun(sequence, out = mean) -->
-<!-- ``` -->
+A nice feature is the ability to easily plot posterior summaries by
+creating reactive outputs. To give gsim the signal to create a
+reactive output, we specify inputs with `x()`, `y()` and `z()`. These
+inputs will become arguments in the reactive function.
 
-<!-- This function can be put to good use to plot the fitted line -->
-<!-- repeatedly over different simulations to represent posterior -->
-<!-- uncertainty. In the snippet below, we use `replicate()` to call our -->
-<!-- reactive function repeatedly. We also draw the posterior mean in red. -->
+```{r}
+wells_sims2 <- gsim(wells_fit, wells_data)
 
-<!-- ```{r fig.align="center"} -->
-<!-- ggplot(wells_data, aes(x = c_dist100)) + -->
-<!--   geom_point(aes(y = switched), alpha = 0.2) + -->
-<!--   replicate(50, stat_function(fun = fitted_fun, alpha = 0.5)) + -->
-<!--   stat_function(fun = fitted_fun, args = list(out = mean), -->
-<!--     color = "red", size = 1.2) -->
-<!-- ``` -->
+fitted_fun <- wells_sims2({
+  x <- x()
+  X <- cbind(1, x, 2, x * 2)
+  inv_logit(X %*% beta)
+})
+class(fitted_fun)
+args(fitted_fun)
+```
 
-<!-- If you are a base graphics user, you can call -->
-<!-- `replicate(curve(fitted_fun, add = TRUE))` to produce the same -->
-<!-- spaghetti effect. -->
+Here we created a function which takes one argument, *x*. We could
+have added other arguments, for example by replacing the second
+predictor in the design matrix with `y()`. Each time you call this
+function with a new *x*, it recomputes the call stack using the new
+input value. Below, we compute the fitted values for a sequence of
+length 5 ranging from 0 to 2:
+
+```{r}
+sequence <- seq(0, 2, length.out = 5)
+fitted_fun(sequence)
+```
+
+If we call the function a second time, the fitted sequence will be
+different. Indeed, the reactive function randomly chooses one
+simulation each time it is called.
+
+```{r}
+fitted_fun(sequence)
+```
+
+You can choose a specific simulation with the argument `out`. For
+example, `fitted_fun(sequence, out = 1)` will always return the same
+values, the ones corresponding to the first simulation of parameters.
 
 
-<!-- # Limitations -->
+## Plotting fitted models
 
-<!-- * If you copy a gsim container, its contents will not be -->
-<!--   duplicated. For example, after issuing `wells_sims_copy <- -->
-<!--   wells_sims`, the two objects will share the same content. Assigning -->
-<!--   or modifying a variable in *wells\_sims\_copy* will also take effect -->
-<!--   inside *wells\_sims*. To effectively copy a container, use -->
-<!--   `clone()`, as in `wells\_sims\_copy <- clone(wells\_sims)`. -->
+You can also compute the fitted values over all simulations instead of
+just one, and summarise them with a function of your choosing. But
+keep in mind that this is an expensive operation if you have a lot of
+simulations and a long input sequence: the reactive function will have
+to repeat the computation `n_sims * length(sequence)` times. As an
+example, we'll compute the posterior mean of the fitted values. To
+this end we provide the summarising function in the `out` argument:
 
-<!-- * Currently, flow control statements will not work inside gsim (if, -->
-<!--   for, ...). -->
+```{r}
+fitted_fun(sequence, out = mean)
+```
 
-<!-- * Subsetting parameters with square brackets may work, but has not -->
-<!--   been tested yet. -->
+This function can be put to good use to plot the fitted line
+repeatedly over different simulations to represent posterior
+uncertainty. In the snippet below, we use `replicate()` to call our
+reactive function repeatedly. We also draw the posterior mean in red.
+
+```{r fig.align="center"}
+ggplot(wells_data, aes(x = c_dist100)) +
+  geom_point(aes(y = switched), alpha = 0.2) +
+  replicate(50, stat_function(fun = fitted_fun, alpha = 0.5)) +
+  stat_function(fun = fitted_fun, args = list(out = mean),
+    color = "red", size = 1.2)
+```
+
+If you are a base graphics user, you can call
+`replicate(curve(fitted_fun, add = TRUE))` to produce the same
+spaghetti effect.
+
+
+# Limitations
+
+* If you copy a gsim container, its contents will not be
+  duplicated. For example, after issuing `wells_sims_copy <-
+  wells_sims`, the two objects will share the same content. Assigning
+  or modifying a variable in *wells\_sims\_copy* will also take effect
+  inside *wells\_sims*. To effectively copy a container, use
+  `clone()`, as in `wells\_sims\_copy <- clone(wells\_sims)`.
+
+* Currently, flow control statements will not work inside gsim (if,
+  for, ...).
+
+* Subsetting parameters with square brackets may work, but has not
+  been tested yet.
