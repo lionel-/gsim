@@ -25,14 +25,13 @@ get_output_names <- function(x) {
   if (is.name(x))
     as.character(x)
   else if (is.call(x) && call_fun(x) == "list") {
-    x <- x[-1]
-
-    names <- names(x) %||% as.character(x)
+    x <- as.list(x[-1])
+    names <- names(x) %||% rep("", length(x))
     empty <- names == ""
     names[empty] <- as.character(x[empty])
 
     # Remove I(), P() and T()
-    trimmed <- stringr::str_match(names, "^I\\(([^)]+)\\)$")[, 2]
+    trimmed <- stringr::str_match(names, "^[IPT]\\(([^)]+)\\)$")[, 2]
     names[!is.na(trimmed)] <- trimmed[!is.na(trimmed)]
 
     names
@@ -104,17 +103,19 @@ tidy.default <- function(x, ...) {
 tidy.numeric <- function(x, name = NULL) {
   # Don't coerce atomics and vectors.
   # We don't use prod here because prod(NULL) = 1
-  if ((Reduce(`*`, dim(x)) == length(x)) %||% TRUE)
+  dims <- dim(x)
+  if (is.null(dims) ||
+        length(dims) == 1 ||
+        (length(dims) == 2 && dims[2] == 1))
     drop(x)
   else {
     x <- as.data.frame(x)
-    names(x) <- make_names(x, name)
+    names(x) <- names(x) %||% make_names(name, seq_along(x))
     x
   }
 }
 
 tidy.posterior <- function(x, name = NULL) {
-  browser(expr = getOption("debug_on"))
   if (is.null(dim(x)))
     dim(x) <- length(x)
   dims <- dim(x)

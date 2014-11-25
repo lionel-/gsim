@@ -46,7 +46,6 @@ container <- function(...) {
   invisible(res)
 }
 
-
 eval_curly <- function(x) {
   force(x)
 

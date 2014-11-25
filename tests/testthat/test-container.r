@@ -37,17 +37,21 @@ test_that("Call stack gets cleaned on error", {
 test_that("Listed output protects and names elements", {
   sims <- clone(new_sims)
 
-  out <- sims(list(
+  out1 <- sims(list(
     I(beta),
     dup = P(beta),
     sigma,
     named = cbind(switched, c_dist100)
   ))
 
-  expect_identical(names(out), c("beta", "dup", "sigma", "named"))
-  expect_is(out[[1]], "matrix")
-  expect_is(out[[2]], "posterior")
-  expect_is(out[[3]], "data.frame")
+  expect_identical(names(out1), c("beta", "dup", "sigma", "named"))
+  expect_is(out1[[1]], "matrix")
+  expect_is(out1[[2]], "posterior")
+  expect_is(out1[[3]], "data.frame")
+
+  # With a single element
+  out2 <- sims(list(P(beta)))
+  expect_identical(names(out2), "beta")
 })
 
 

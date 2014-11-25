@@ -6,12 +6,12 @@ testthat::context("Tidy outputs")
 test_that("Data objects are correctly tidied", {
   sims <- clone(new_sims)
 
-  out1 <- sims(switched)
-  out2 <- sims(cbind(switched, educ))
-  out3 <- sims(matrix(1, 1, 1))
+  # out1 <- sims(switched)
+  # out3 <- sims(matrix(1, 1, 1))
+  # expect_identical(names(out1), "switched")
 
-  expect_identical(names(out1), "switched")
-  expect_identical(names(out2), c("col1", "col2"))
+  out2 <- sims(cbind(switched, educ))
+  expect_identical(names(out2), c("switched", "educ"))
 })
 
 
@@ -74,7 +74,7 @@ test_that("Tidying when default is array output", {
   sims <- gsim(arm_sims, wells, tidy_output = FALSE)
 
   out1 <- sims(list(
-    ## beta,
+    beta,
     dup = T(beta)
   ))
 

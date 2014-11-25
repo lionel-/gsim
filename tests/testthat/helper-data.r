@@ -1,5 +1,4 @@
 
-check_packages("RCurl", "dplyr")
 skip_heavy_computations <- TRUE
 
 wells <- fetch_wells_data()
