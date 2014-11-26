@@ -249,12 +249,9 @@ The 'long' data.frame format is well suited for ggplot2. You can pivot
 on the variable *beta* to plot the posterior density of each
 coefficient in a facet grid.
 
-```{r echo=FALSE}
+```{r echo=-2, message=FALSE, warning=FALSE, fig.align="center"}
 library("ggplot2")
 theme_set(theme_bw())
-```
-```{r message=FALSE, warning=FALSE, fig.align="center"}
-library("ggplot2")
 ggplot(beta, aes(value)) +
   geom_histogram() +
   facet_wrap(~ beta, scales = "free")
