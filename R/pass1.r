@@ -200,6 +200,12 @@ mark_looping <- function(x, n_post, to_loop) {
 
 pass1_call <- function(call) {
   browser(expr = pass1)
+  if (call_fun(call) %in% protected_funs) {
+    call <- no_loop(call)
+    attr(call, "non_recyclability") <- Inf
+    return(call)
+  }
+
   if (any(is_arg_call(call)))
     call <- pass1_args(call)
 
