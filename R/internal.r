@@ -87,14 +87,20 @@ assign_in_context <- function(object, value) {
   NULL
 }
 
-eval_in_storage <- function(x) {
+eval_env <- function(x) {
   env <- container_env()
-  gsim <- list2env(as.list(asNamespace("gsim")), parent = calling_env())
-  context <- list2env(env$context, parent = gsim)
-  storage <- list2env(env$storage, parent = context)
+  gsim_env <- list2env(as.list(asNamespace("gsim")), parent = calling_env())
+  context_env <- list2env(env$context, parent = gsim_env)
+  storage_env <- list2env(env$storage, parent = context_env)
+  storage_env
+}
 
-  res <- eval(x, storage)
-  env$storage <- as.list(storage)
+eval_in_storage <- function(x) {
+  storage_env <- eval_env()
+  res <- eval(x, storage_env)
+
+  env <- container_env()
+  env$storage <- as.list(storage_env)
   res
 }
 

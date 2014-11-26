@@ -24,6 +24,9 @@ bernoulli_check <- function(y, p, stat, p_value = TRUE) {
   stopifnot(is.numeric(y) && is.posterior(p))
 
   stat <- substitute(stat)
+  enclos <- eval_env()
+  enclos$y <- y
+
   n_sims <- dim(p)[1]
   n <- length(y)
 
@@ -38,7 +41,7 @@ bernoulli_check <- function(y, p, stat, p_value = TRUE) {
   y_stat <- array(NA, dim = c(n_sims, dim_stat))
   for (i in seq_len(n_sims)) {
     env <- list(p = p[i, ])
-    y_stat[i, ] <- eval(stat, env)
+    y_stat[i, ] <- eval(stat, env, enclos)
   }
 
   y_rep_stat <- array(NA, dim = c(n_sims, dim_stat))
@@ -47,7 +50,7 @@ bernoulli_check <- function(y, p, stat, p_value = TRUE) {
       y = y_rep[i, ],
       p = p[i, ]
     )
-    y_rep_stat[i, ] <- eval(stat, env)
+    y_rep_stat[i, ] <- eval(stat, env, enclos)
   }
 
   if (p_value)
