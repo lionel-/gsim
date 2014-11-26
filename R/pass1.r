@@ -166,7 +166,8 @@ pass1_args <- function(x) {
 }
 
 vectorised_funs <- c(
-  "(", "{", "I", "P", "T", "list", "%%", "summarise_sims"
+  "(", "{", "I", "P", "T", "list",
+  "%%", "summarise_sims", "bernoulli_check"
 )
 
 # Looping over all simulations can be avoided in certain cases
@@ -194,15 +195,15 @@ mark_looping <- function(x, n_post, to_loop) {
     to_loop(x)
 }
 
-pass1_call <- function(x) {
+pass1_call <- function(call) {
   browser(expr = pass1)
-  if (any(is_arg_call(x)))
-    x <- pass1_args(x)
+  if (any(is_arg_call(call)))
+    call <- pass1_args(call)
 
   # Mark calls: should posterior call be looped, should non-posterior
   # call be recycled, is call reactive?
-  reactive_inputs <- unique(unlist(compact(lapply(x[-1], find_reactive_args))))
-  posterior_args <- compact(lapply(x[-1], find_posterior_args))
+  reactive_inputs <- unique(unlist(compact(lapply(call[-1], find_reactive_args))))
+  posterior_args <- compact(lapply(call[-1], find_posterior_args))
   n_reactive <- length(reactive_inputs)
   n_posterior <- length(posterior_args)
 
@@ -212,23 +213,23 @@ pass1_call <- function(x) {
     if (n_reactive > 0 || n_posterior > 0)
       Inf
     else
-      non_recyclability(x)
+      non_recyclability(call)
 
-  x <- 
+  call <- 
     if (n_posterior > 0)
-      mark_looping(x, n_posterior, to_loop)
+      mark_looping(call, n_posterior, to_loop)
     else
-      x
+      call
 
   # Happens when one of the arguments is a previous LHS reactive
-  x <- 
-    if (n_reactive > 0 && !is.reactive(x))
-      reactive(x, reactive_inputs)
+  call <- 
+    if (n_reactive > 0 && !is.reactive(call))
+      reactive(call, reactive_inputs)
     else
-      x
+      call
 
-  attr(x, "non_recyclability") <- non_recyclability
-  x
+  attr(call, "non_recyclability") <- non_recyclability
+  call
 }
 
 
