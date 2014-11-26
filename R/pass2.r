@@ -19,53 +19,54 @@ is.posterior_name <- function(x) {
 }
 
 
-pass2_name <- function(x) {
-  obj <- get_in_storage(as.character(x))
+pass2_name <- function(name) {
+  obj <- get_in_storage(as.character(name))
 
   if (is.posterior(obj))
-    wrap_posterior(x, dim(obj))
+    wrap_posterior(name, dim(obj))
   else
-    x
+    name
 }
 
-pass2_call <- function(x, single_sim = FALSE) {
+pass2_call <- function(call, single_sim = FALSE) {
   browser(expr = pass2)
+  if (call_fun(call) %in% protected_funs)
+    return(call)
+
+
   # If the arguments of a call are all vectorized operations, this
   # call is itself vectorized. If the arguments are mixed, then we
   # need to loop over the vectorised arguments as well.
 
-  should_loop <- function(x) {
+  should_loop <- function(call) {
     if (single_sim)
-      is.posterior_call(x) || is.posterior_name(x)
+      is.posterior_call(call) || is.posterior_name(call)
     else
-      is.to_loop(x)
+      is.to_loop(call)
   }
 
-
   # First element is the function name, so we do not need to treat it
-  loop_me <- papply(x[-1], should_loop)
-  x[-1][loop_me] <- lapply(x[-1][loop_me], pass2_expression,
+  loop_me <- papply(call[-1], should_loop)
+  call[-1][loop_me] <- lapply(call[-1][loop_me], pass2_expression,
     single_sim = single_sim)
   
   # single_sim needs a different logic: recursing until finding a name
   # Otherwise: wrap if is.no_loop, or if is.name && is.posterior
   # TODO: should we have names here??
-  if (is.to_loop(x) && !single_sim) {
+  if (is.to_loop(call) && !single_sim) {
     should_wrap <- function(x) is.no_loop(x) || is.posterior_name(x)
-    wrap_me <- papply(x[-1], should_wrap)
+    wrap_me <- papply(call[-1], should_wrap)
 
-    x[-1][wrap_me] <- lapply(x[-1][wrap_me], function(item) {
+    call[-1][wrap_me] <- lapply(call[-1][wrap_me], function(item) {
       tryCatch(
         obj <- eval_first(item) %>% init_posterior,
         error = stack_error
       )
       wrap_posterior(item, dim(obj))
     })
-
-    x
   }
-  else
-    x
+
+  call
 }
 
 pass2_expression <- function(x, single_sim = FALSE) {
@@ -88,6 +89,9 @@ pass2_assignment <- function(x, single_sim = FALSE) {
   browser(expr = pass2)
   lhs <- x[[2]]
   rhs <- x[[3]]
+
+  if (is.call(rhs) && call_fun(rhs) %in% protected_funs)
+    return(no_loop(x))
 
   # TODO: Why would is.to_loop() not be applicable?
   ## if (is.posterior_call(rhs) && !is.no_loop(rhs)) {

@@ -126,20 +126,21 @@ maybe_recycle <- function(x) {
 # If argument is a posterior object scheduled to be looped over,
 # return it as is. If it is an expression depending on reactive
 # inputs, mark the surrounding call as reactive.
-pass1_args <- function(x) {
+pass1_args <- function(call) {
   browser(expr = pass1)
-  which_is_call <- which(c(FALSE, is_arg_call(x)))
+  which_is_call <- which(c(FALSE, is_arg_call(call)))
   inputs <- NULL
 
-  for (i in seq_along(x)[-1]) {
+  for (i in seq_along(call)[-1]) {
     obj <-
       if (i %in% which_is_call)
-        pass1_call(x[[i]])
+        pass1_call(call[[i]])
       else
-        x[[i]]
+        call[[i]]
 
-    obj <- maybe_recycle(obj)
-    x[[i]] <- obj
+    if (!call_fun(call) %in% protected_funs)
+      obj <- maybe_recycle(obj)
+    call[[i]] <- obj
 
     new_inputs <- get_new_inputs(obj)
     inputs <- unique(c(inputs, new_inputs))
@@ -147,28 +148,30 @@ pass1_args <- function(x) {
 
   
   if (is.null(inputs)) {
-    if (call_fun(x) %in% vectorised_funs) {
-      to_loop_args <- papply(x, is.to_loop)
+    if (call_fun(call) %in% vectorised_funs) {
+      to_loop_args <- papply(call, is.to_loop)
 
       if (any(to_loop_args))
-        x[to_loop_args] <- lapply(x[to_loop_args], function(item) {
+        call[to_loop_args] <- lapply(call[to_loop_args], function(item) {
           ref <- add_ref(empty_posterior())
           add_to_call_stack(ref, item)
           no_loop(ref, subclass = "posterior_call")
         })
     }
 
-    x
+    call
   }
   else
-    reactive(x, inputs)
+    reactive(call, inputs)
 
 }
 
 vectorised_funs <- c(
   "(", "{", "I", "P", "T", "list",
-  "%%", "summarise_sims", "bernoulli_check"
+  "%%", "summarise_sims"
 )
+
+protected_funs <- "bernoulli_check"
 
 # Looping over all simulations can be avoided in certain cases
 mark_looping <- function(x, n_post, to_loop) {
@@ -178,7 +181,7 @@ mark_looping <- function(x, n_post, to_loop) {
   if (to_loop)
     to_loop(x)
 
-  else if (fun %in% vectorised_funs)
+  else if (fun %in% c(vectorised_funs, protected_funs))
     no_loop(x, subclass = "posterior_call")
 
   # No looping for binary elementwise ops with _two_ _posterior_ args
