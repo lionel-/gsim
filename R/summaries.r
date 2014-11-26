@@ -22,8 +22,9 @@ summarise_sims <- function(x, fun) {
 
 bernoulli_check <- function(y, p, stat, p_value = TRUE) {
   stopifnot(is.numeric(y) && is.posterior(p))
-  stat <- substitute(stat)
+  browser(expr = getOption("debug_on"))
 
+  stat <- substitute(stat)
   n_sims <- dim(p)[1]
   n <- length(y)
 
@@ -49,6 +50,8 @@ bernoulli_check <- function(y, p, stat, p_value = TRUE) {
     )
     y_rep_stat[i, ] <- eval(stat, env)
   }
+
+  y_stat
 
   if (p_value)
     colMeans(y_stat > y_rep_stat)

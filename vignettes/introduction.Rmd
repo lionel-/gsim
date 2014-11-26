@@ -160,9 +160,8 @@ out <- wells_sims({
   residuals_rep <- y_rep - fitted
   residuals_sd_rep <- sd(residuals_rep)
 
-  p <- residuals_sd > residuals_sd_rep
-
-  summarise_sims(p, mean)
+  comp <- residuals_sd > residuals_sd_rep
+  summarise_sims(comp, mean)
 })
 
 out
@@ -186,7 +185,7 @@ gsim provides a shortcut by overloading the modulo operator.
 
 
 ```{r}
-p <- wells_sims(p %% median)
+p <- wells_sims(comp %% median)
 ```
 
 
