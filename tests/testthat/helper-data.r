@@ -18,4 +18,3 @@ radon_sims_file <- system.file("tests", "testthat", "radon-sims.rda",
   package = "gsim")
 wells_sims_file <- system.file("tests", "testthat", "wells-sims.rda",
   package = "gsim")
-

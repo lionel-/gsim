@@ -138,6 +138,26 @@ test_that("Direct ppc with normal_check", {
 })
 
 
+test_that("Direct ppc with model_check", {
+  skip("Not yet implemented")
+  load(radon_sims_file)
+
+  q <- quantile(radon$y, c(0.1, 0.9))
+  match(q[1], radon$y)
+  match(q[2], radon$y)
+
+  c(radon, radon_sims) %$%
+    model_check(
+      y = y,
+      y_rep = y_rep,
+      stat = {
+        y_sorted <- sort(y)
+        abs(y_sorted[106] - mu) - abs(y_sorted[10] - mu)
+      }
+    )
+})
+
+
 test_that("Listed looped operations", {
   # TODO: Not clear what to do with calls such as
   #   list(3, X %*% beta)

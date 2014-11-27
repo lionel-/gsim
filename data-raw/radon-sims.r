@@ -20,7 +20,7 @@ radon_stanfit <- rstan::stan(stan_radon_m, data = stan_radon_data,
   iter = 100, chains = 2)
 
 radon_sims <- rstan::extract(radon_stanfit,
-  c("y_hat", "a", "b", "alpha", "beta", "Sigma_county", "rho", "sigma_y")
+  c("y_hat", "y_rep", "a", "b", "alpha", "beta", "Sigma_county", "rho", "sigma_y")
 )
 
 save(radon_sims, file = "./tests/testthat/radon-sims.rda")

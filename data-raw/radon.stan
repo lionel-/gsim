@@ -56,3 +56,9 @@ model {
   // convergence
   rho ~ normal(0, 0.1);
 }
+
+generated quantities {
+  vector[N] y_rep;
+  for (n in 1:N)
+    y_rep[n] <- normal_rng(y_hat[n], sigma_y);
+}

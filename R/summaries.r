@@ -23,7 +23,7 @@ summarise_sims <- function(x, fun) {
 # TODO: Abstract the checking logic in a function factory
 
 #' @export
-bernoulli_check <- function(y, p, p_value = TRUE, stat) {
+bernoulli_check <- function(y, p, stat) {
   stopifnot(is.numeric(y) && is.array(p))
 
   # Need lazyeval so that it works when called inside gsim
@@ -58,15 +58,14 @@ bernoulli_check <- function(y, p, p_value = TRUE, stat) {
     y_rep_stat[i, ] <- eval(stat, env, enclos)
   }
 
-  if (p_value)
-    colMeans(y_stat > y_rep_stat)
-  else
-    list(stat = y_stat, stat_rep = posterior(y_rep_stat))
+  out <- list(stat = y_stat, stat_rep = y_rep_stat)
+  attr(out, "p-value") <- colMeans(y_stat > y_rep_stat)
+  out
 }
 
 
 #' @export
-normal_check <- function(y, mu, sigma, p_value = TRUE, stat) {
+normal_check <- function(y, mu, sigma, stat) {
   stopifnot(is.numeric(y) && is.array(mu) && is.array(sigma))
 
   # Need lazyeval so that it works when called inside gsim
@@ -102,8 +101,11 @@ normal_check <- function(y, mu, sigma, p_value = TRUE, stat) {
     y_rep_stat[i, ] <- eval(stat, env, enclos)
   }
 
-  if (p_value)
-    colMeans(y_stat > y_rep_stat)
-  else
-    list(stat = y_stat, stat_rep = posterior(y_rep_stat))
+  out <- list(stat = y_stat, stat_rep = y_rep_stat)
+  attr(out, "p-value") <- colMeans(y_stat > y_rep_stat)
+  out
 }
+
+
+#' @export
+p <- function(check) attr(check, "p_value")
