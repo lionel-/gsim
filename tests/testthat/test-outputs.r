@@ -84,10 +84,39 @@ test_that("Posterior predictive checks", {
     # Set seed and compensate for `eval_first`
     null <- set.seed(123)
     null <- rbinom(3020, 1, 0.1)
-    bernoulli_check(y = switched, p = fitted, stat = sd(y - p))
+
+    bernoulli_check(y = switched, p = fitted, stat = var(y - p))
   })
 
   expect_identical(loop_p, p2)
+})
+
+
+test_that("Direct ppc with bernoulli_check", {
+  load(wells_sims_file)
+  loop_fitted <- inv_logit(wells_sims$y_hat)
+  loop_residuals <- sweep(loop_fitted, 2, wells$switched, function(a, b) b - a)
+  loop_residuals_var <- apply(loop_residuals, 1, var)
+
+  set.seed(123)
+  loop_y_rep <- array(dim = c(n_sims, 3020))
+  loop_residuals_rep <- array(dim = c(n_sims, 3020))
+  for (i in 1:n_sims) {
+    loop_y_rep[i, ] <- rbinom(3020, 1, loop_fitted[i, ])
+    loop_residuals_rep[i, ] <- loop_y_rep[i, ] - loop_fitted[i, ]
+  }
+  loop_residuals_var_rep <- apply(loop_residuals_rep, 1, var)
+  loop_p <- mean(loop_residuals_var > loop_residuals_var_rep)
+  
+  set.seed(123)
+  p <- c(wells, wells_sims) %$%
+    bernoulli_check(
+      y = switched,
+      p = inv_logit(y_hat),
+      stat = sd(y - p)
+    )
+
+  expect_identical(loop_p, p)
 })
 
 

@@ -29,3 +29,9 @@ overrides$str <- function(x) {
 ##   names(expr) <- names
 ##   do.call(list, expr, envir = list2env(storage()))
 ## }
+
+
+overrides$bernoulli_check <- function(y, p, p_value = TRUE, stat) {
+  expr <- quote(bernoulli_check(y, p, p_value, stat))
+  eval(expr, envir = environment(), enclos = eval_env())
+}

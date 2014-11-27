@@ -163,7 +163,7 @@ test_that("Stan simulations are correctly imported", {
       J = dplyr::n_distinct(radon$county)
     )
   )
-  stan_radon_m <- system.file("tests", "testthat", "radon.stan",
+  stan_radon_m <- system.file("data-raw", "radon.stan",
     package = "gsim")
 
   stan_radon_fit <- rstan::stan(stan_radon_m, data = stan_radon_data, iter = 200)

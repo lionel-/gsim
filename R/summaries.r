@@ -20,8 +20,51 @@ summarise_sims <- function(x, fun) {
 `%%` <- summarise_sims
 
 
-bernoulli_check <- function(y, p, stat, p_value = TRUE) {
-  stopifnot(is.numeric(y) && is.posterior(p))
+#' @export
+bernoulli_check <- function(y, p, p_value = TRUE, stat) {
+  stopifnot(is.numeric(y) && is.array(p))
+
+  # Need lazyeval so that it works when called inside gsim
+  lazy <- lazyeval::lazy(stat)
+  enclos <- new.env(parent = lazy$env)
+  enclos$y <- y
+  stat <- lazy$expr
+
+  n_sims <- dim(p)[1]
+  n <- length(y)
+
+  y_rep <- array(NA, dim = c(n_sims, n))
+  for (i in seq_len(n_sims)) {
+    y_rep[i, ] <- rbernoulli(n, p[i, ])
+  }
+
+  tmp <- eval(stat, env = list(p = p[1, ]))
+  dim_stat <- dim(tmp) %||% length(tmp)
+
+  y_stat <- array(NA, dim = c(n_sims, dim_stat))
+  for (i in seq_len(n_sims)) {
+    env <- list(p = p[i, ])
+    y_stat[i, ] <- eval(stat, env, enclos)
+  }
+
+  y_rep_stat <- array(NA, dim = c(n_sims, dim_stat))
+  for (i in seq_len(n_sims)) {
+    env <- list(
+      y = y_rep[i, ],
+      p = p[i, ]
+    )
+    y_rep_stat[i, ] <- eval(stat, env, enclos)
+  }
+
+  if (p_value)
+    colMeans(y_stat > y_rep_stat)
+  else
+    list(stat = y_stat, stat_rep = posterior(y_rep_stat))
+}
+
+
+bernoulli_check_old <- function(y, p, stat, p_value = TRUE) {
+  stopifnot(is.numeric(y) && is.array(p))
 
   stat <- substitute(stat)
   enclos <- eval_env()

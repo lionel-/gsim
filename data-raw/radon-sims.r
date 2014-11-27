@@ -1,5 +1,5 @@
 
-# Data for tests
+# Radon simulations used in tests
 
 radon <- fetch_radon_data()
 stan_radon_data <- c(
@@ -15,8 +15,7 @@ stan_radon_data <- c(
   )
 )
 
-stan_radon_m <- system.file("tests", "testthat", "radon.stan",
-  package = "gsim")
+stan_radon_m <- system.file("data-raw", "radon.stan", package = "gsim")
 radon_stanfit <- rstan::stan(stan_radon_m, data = stan_radon_data,
   iter = 100, chains = 2)
 

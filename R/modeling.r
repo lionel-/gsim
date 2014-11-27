@@ -186,6 +186,11 @@ get_omega <- function(resid, sigma) {
 
 
 #' @export
+logit <- function(x) {
+  log(x/(1 - x))
+}
+
+#' @export
 inv_logit <- function(x) {
   1 / (1 + exp(-x))
 }
