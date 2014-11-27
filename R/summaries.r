@@ -59,7 +59,7 @@ bernoulli_check <- function(y, p, stat) {
   }
 
   out <- list(stat = y_stat, stat_rep = y_rep_stat)
-  attr(out, "p-value") <- colMeans(y_stat > y_rep_stat)
+  attr(out, "p-value") <- mean(y_stat > y_rep_stat)
   out
 }
 
@@ -102,10 +102,10 @@ normal_check <- function(y, mu, sigma, stat) {
   }
 
   out <- list(stat = y_stat, stat_rep = y_rep_stat)
-  attr(out, "p-value") <- colMeans(y_stat > y_rep_stat)
+  attr(out, "p-value") <- mean(y_stat > y_rep_stat)
   out
 }
 
 
 #' @export
-p <- function(check) attr(check, "p_value")
+p <- function(check) attr(check, "p-value")

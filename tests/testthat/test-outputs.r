@@ -77,7 +77,7 @@ test_that("Posterior predictive checks", {
 
 
   sims2 <- clone(new_sims)
-  p2 <- sims2({
+  out2 <- sims2({
     X <- cbind(intercept(), c_dist100, c_arsenic, c_dist100 * c_arsenic)
     fitted <- inv_logit(X %*% col_vector(beta))
 
@@ -88,7 +88,7 @@ test_that("Posterior predictive checks", {
     bernoulli_check(y = switched, p = fitted, stat = var(y - p))
   })
 
-  expect_identical(loop_p, p2)
+  expect_identical(loop_p, out2$p)
 })
 
 
@@ -109,14 +109,14 @@ test_that("Direct ppc with bernoulli_check", {
   loop_p <- mean(loop_residuals_var > loop_residuals_var_rep)
   
   set.seed(123)
-  p <- c(wells, wells_sims) %$%
+  out <- c(wells, wells_sims) %$%
     bernoulli_check(
       y = switched,
       p = inv_logit(y_hat),
       stat = sd(y - p)
     )
 
-  expect_identical(loop_p, p)
+  expect_identical(loop_p, out$p)
 })
 
 
@@ -131,15 +131,16 @@ test_that("Direct ppc with normal_check", {
   loop_p <- mean(max(radon$y) > apply(loop_y_rep, 1, max))
 
   set.seed(123)
-  p <- c(radon, radon_sims) %$%
+  out <- c(radon, radon_sims) %$%
     normal_check(y, y_hat, sigma_y, stat = max(y))
 
-  expect_identical(p, loop_p)
+  expect_identical(loop_p, out$p)
 })
 
 
 test_that("Direct ppc with model_check", {
   skip("Not yet implemented")
+
   load(radon_sims_file)
 
   q <- quantile(radon$y, c(0.1, 0.9))
@@ -150,6 +151,15 @@ test_that("Direct ppc with model_check", {
     model_check(
       y = y,
       y_rep = y_rep,
+      stat = {
+        y_sorted <- sort(y)
+        abs(y_sorted[106] - mu) - abs(y_sorted[10] - mu)
+      }
+    )
+
+  out <- c(radon, radon_sims) %$%
+    normal_check(
+      y = y, mu = y_hat, sigma = sigma_y,
       stat = {
         y_sorted <- sort(y)
         abs(y_sorted[106] - mu) - abs(y_sorted[10] - mu)
