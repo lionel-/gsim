@@ -50,4 +50,9 @@ model {
     Beta[j] ~ multi_normal(Beta_hat[j], Sigma_county);
   
   y ~ normal(y_hat, sigma_y);
+
+  // The only purpose of correlated intercepts and slopes is to get a
+  // matrix parameter for tests (Sigma). But need tight prior on rho for
+  // convergence
+  rho ~ normal(0, 0.1);
 }

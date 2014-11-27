@@ -3,11 +3,15 @@
 
 radon <- fetch_radon_data()
 stan_radon_data <- c(
-  radon %>% select(y, x, county),
-  radon %>% group_by(county) %>% distinct(u) %>% ungroup %>% select(u),
+  radon %>% dplyr::select(y, x, county),
+  radon %>%
+    dplyr::group_by(county) %>%
+    dplyr::distinct(u) %>%
+    dplyr::ungroup() %>%
+    dplyr::select(u),
   list(
     N = nrow(radon),
-    J = n_distinct(radon$county)
+    J = dplyr::n_distinct(radon$county)
   )
 )
 
@@ -17,6 +21,7 @@ radon_stanfit <- rstan::stan(stan_radon_m, data = stan_radon_data,
   iter = 100, chains = 2)
 
 radon_sims <- rstan::extract(radon_stanfit,
-  c("a", "b", "alpha", "beta", "Sigma_county", "rho", "sigma_y"))
+  c("y_hat", "a", "b", "alpha", "beta", "Sigma_county", "rho", "sigma_y")
+)
 
-## save(radon_sims, file = "./tests/testthat/radon-sims.rda")
+save(radon_sims, file = "./tests/testthat/radon-sims.rda")
