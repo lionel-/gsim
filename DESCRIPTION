@@ -5,12 +5,12 @@ Author: Lionel Henry, <lionel.hry@gmail.com> [aut,cre]
 Description: What the package does (paragraph)
 License: GPL-3
 LazyData: true
-Depends: 
+Depends:
     R (>= 3.1.1)
-Imports: 
+Imports:
     dplyr (>= 0.2),
     lazyeval
-Suggests: 
+Suggests:
     arm,
     MASS,
     rstan,

@@ -120,8 +120,21 @@ test_that("Direct ppc with bernoulli_check", {
 })
 
 
-test_that("Posterior predictive checks, hierarchical", {
-  ## load(radon_sims_file)
+test_that("Direct ppc with normal_check", {
+  load(radon_sims_file)
+
+  set.seed(123)
+  loop_y_rep <- array(dim = c(n_sims, 919))
+  for (i in 1:n_sims) {
+    loop_y_rep[i, ] <- rnorm(919, radon_sims$y_hat[i, ], radon_sims$sigma_y[i])
+  }
+  loop_p <- mean(max(radon$y) > apply(loop_y_rep, 1, max))
+
+  set.seed(123)
+  p <- c(radon, radon_sims) %$%
+    normal_check(y, y_hat, sigma_y, stat = max(y))
+
+  expect_identical(p, loop_p)
 })
 
 
