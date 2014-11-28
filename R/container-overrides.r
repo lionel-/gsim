@@ -31,7 +31,16 @@ overrides$str <- function(x) {
 ## }
 
 
-overrides$bernoulli_check <- function(y, p, p_value = TRUE, stat) {
-  expr <- quote(bernoulli_check(y, p, p_value, stat))
-  eval(expr, envir = environment(), enclos = eval_env())
+overrides$check_bernoulli <- function(y, p, stat) {
+  stop("Don't work inside gsim yet")
+  ## expr <- bquote(bernoulli_check(y, p, .(storage()), stat))
+  ## eval(expr, envir = environment(), enclos = eval_env())
+}
+
+overrides$check_normal <- function(y, mu, sigma, stat) {
+  stop("Don't work inside gsim yet")
+}
+
+overrides$check_model <- function(y, mu, sigma, stat) {
+  stop("Don't work inside gsim yet")
 }
