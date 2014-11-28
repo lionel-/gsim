@@ -20,41 +20,29 @@ summarise_sims <- function(x, fun) {
 `%%` <- summarise_sims
 
 
-# TODO: Abstract the checking logic in a function factory
-
 #' @export
-bernoulli_check <- function(y, p, stat) {
-  stopifnot(is.numeric(y) && is.array(p))
-
-  # Need lazyeval so that it works when called inside gsim
+check_model <- function(y, y_rep, params, stat) {
   lazy <- lazyeval::lazy(stat)
-  enclos <- new.env(parent = lazy$env)
-  enclos$y <- y
   stat <- lazy$expr
 
-  n_sims <- dim(p)[1]
+  enclos <- new.env(parent = lazy$env)
+  enclos$y <- y
+  
+  n_sims <- dim(first(params))[1]
   n <- length(y)
-
-  y_rep <- array(NA, dim = c(n_sims, n))
-  for (i in seq_len(n_sims)) {
-    y_rep[i, ] <- rbernoulli(n, p[i, ])
-  }
-
-  tmp <- eval(stat, env = list(p = p[1, ]))
-  dim_stat <- dim(tmp) %||% length(tmp)
+  evaled_stat <- eval(stat, env = pick_sims(params, 1))
+  dim_stat <- dim(evaled_stat) %||% length(evaled_stat)
 
   y_stat <- array(NA, dim = c(n_sims, dim_stat))
   for (i in seq_len(n_sims)) {
-    env <- list(p = p[i, ])
+    env <- pick_sims(params, i)
     y_stat[i, ] <- eval(stat, env, enclos)
   }
 
   y_rep_stat <- array(NA, dim = c(n_sims, dim_stat))
   for (i in seq_len(n_sims)) {
-    env <- list(
-      y = y_rep[i, ],
-      p = p[i, ]
-    )
+    env <- pick_sims(params, i)
+    env$y <- y_rep[i, ]
     y_rep_stat[i, ] <- eval(stat, env, enclos)
   }
 
@@ -63,16 +51,12 @@ bernoulli_check <- function(y, p, stat) {
   out
 }
 
-
 #' @export
-normal_check <- function(y, mu, sigma, stat) {
+check_normal <- function(y, mu, sigma, params = NULL, stat) {
   stopifnot(is.numeric(y) && is.array(mu) && is.array(sigma))
 
-  # Need lazyeval so that it works when called inside gsim
-  lazy <- lazyeval::lazy(stat)
-  enclos <- new.env(parent = lazy$env)
-  enclos$y <- y
-  stat <- lazy$expr
+  if (is.null(params))
+    params <- list(mu = mu, sigma = sigma)
 
   n_sims <- dim(mu)[1]
   n <- length(y)
@@ -82,28 +66,25 @@ normal_check <- function(y, mu, sigma, stat) {
     y_rep[i, ] <- rnorm(n, mu[i, ], sigma[i])
   }
 
-  tmp <- eval(stat, env = list(mu = mu[1, ], sigma = sigma[i]))
-  dim_stat <- dim(tmp) %||% length(tmp)
+  check_model(y, y_rep, params, stat)
+}
 
-  y_stat <- array(NA, dim = c(n_sims, dim_stat))
+#' @export
+check_bernoulli <- function(y, p, params = NULL, stat) {
+  stopifnot(is.numeric(y) && is.array(p))
+
+  if (is.null(params))
+    params <- list(p = p)
+
+  n_sims <- dim(p)[1]
+  n <- length(y)
+
+  y_rep <- array(NA, dim = c(n_sims, n))
   for (i in seq_len(n_sims)) {
-    env <- list(mu = mu[i, ], sigma = sigma[i])
-    y_stat[i, ] <- eval(stat, env, enclos)
+    y_rep[i, ] <- rbernoulli(n, p[i, ])
   }
 
-  y_rep_stat <- array(NA, dim = c(n_sims, dim_stat))
-  for (i in seq_len(n_sims)) {
-    env <- list(
-      y = y_rep[i, ],
-      mu = mu[i, ],
-      sigma = sigma[i]
-    )
-    y_rep_stat[i, ] <- eval(stat, env, enclos)
-  }
-
-  out <- list(stat = y_stat, stat_rep = y_rep_stat)
-  attr(out, "p-value") <- mean(y_stat > y_rep_stat)
-  out
+  check_model(y, y_rep, params, stat)
 }
 
 

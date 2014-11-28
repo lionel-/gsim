@@ -110,13 +110,13 @@ test_that("Direct ppc with bernoulli_check", {
   
   set.seed(123)
   out <- c(wells, wells_sims) %$%
-    bernoulli_check(
+    check_bernoulli(
       y = switched,
       p = inv_logit(y_hat),
       stat = sd(y - p)
     )
 
-  expect_identical(loop_p, out$p)
+  expect_identical(loop_p, p(out))
 })
 
 
@@ -132,39 +132,33 @@ test_that("Direct ppc with normal_check", {
 
   set.seed(123)
   out <- c(radon, radon_sims) %$%
-    normal_check(y, y_hat, sigma_y, stat = max(y))
+    check_normal(y, y_hat, sigma_y, stat = max(y))
 
-  expect_identical(loop_p, out$p)
+  expect_identical(loop_p, p(out))
 })
 
 
 test_that("Direct ppc with model_check", {
-  skip("Not yet implemented")
-
   load(radon_sims_file)
 
-  q <- quantile(radon$y, c(0.1, 0.9))
-  match(q[1], radon$y)
-  match(q[2], radon$y)
+  set.seed(123)
+  out <- check_model(
+    y = radon$y,
+    y_rep = y_rep,
+    params = radon_sims,
+    stat = {
+      y_sorted <- sort(y)
+      abs(y_sorted[106] - y_hat) - abs(y_sorted[10] - y_hat)})
 
-  c(radon, radon_sims) %$%
-    model_check(
-      y = y,
-      y_rep = y_rep,
-      stat = {
-        y_sorted <- sort(y)
-        abs(y_sorted[106] - mu) - abs(y_sorted[10] - mu)
-      }
-    )
-
-  out <- c(radon, radon_sims) %$%
-    normal_check(
+  set.seed(123)
+  out2 <- c(radon, radon_sims) %$%
+    check_normal(
       y = y, mu = y_hat, sigma = sigma_y,
       stat = {
         y_sorted <- sort(y)
-        abs(y_sorted[106] - mu) - abs(y_sorted[10] - mu)
-      }
-    )
+        abs(y_sorted[106] - mu) - abs(y_sorted[10] - mu)})
+
+  expect_identical(out, out2)
 })
 
 

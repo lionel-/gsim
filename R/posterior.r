@@ -68,7 +68,6 @@ pick_sim_index <- function(x, sim) {
   }
 }
 
-
 pick_sim <- function(x, sim) {
   index <- pick_sim_index(x, sim)
   param_dim <- dim(x)[-1] %||% 1
@@ -77,16 +76,17 @@ pick_sim <- function(x, sim) {
   x
 }
 
+pick_sims <- function(sims, i) {
+  args <- lapply(sims, function(param) {
+    n <- dim_length(param)
+    replicate(n - 1, substitute())
+  })
 
-# Arrays are virtually always NAM(2) objects, so using primitive
-# replacement functions would not result in gains anyway.
-`pick_sim<-` <- function(x, sim, value) {
-  if (is.empty(x))
-    x <- init_posterior(value)
-
-  index <- pick_sim_index(x, sim)
-  x[index] <- value
-  x
+  out <- Map(function(param, arg) {
+    do.call(`[`, c(list(param, i), arg), quote = TRUE)  
+  }, sims, args)
+  
+  out
 }
 
 
