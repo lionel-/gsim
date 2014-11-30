@@ -22,6 +22,8 @@ summarise_sims <- function(x, fun) {
 
 #' @export
 check_model <- function(y, y_rep, params, stat) {
+  stopifnot(is.numeric(y))
+
   lazy <- lazyeval::lazy(stat)
   stat <- lazy$expr
 
@@ -34,7 +36,6 @@ check_model <- function(y, y_rep, params, stat) {
   }
   else
     y_rep_name <- get_param_name(y_rep)
-
 
   n_sims <- dim(first(params))[1]
 
@@ -65,36 +66,39 @@ check_model <- function(y, y_rep, params, stat) {
 
 #' @export
 check_normal <- function(y, mu, sigma, params = NULL, stat) {
+  if (!is.null(params)) {
+    mu_name <- get_param_name(mu)
+    sigma_name <- get_param_name(sigma)
+    mu <- params[[mu_name]]
+    sigma <- params[[sigma_name]]
+  }
+
   stopifnot(is.numeric(y) && is.array(mu) && is.array(sigma))
 
   n_sims <- dim(mu)[1]
   n <- length(y)
-
-  if (!is.null(params)) {
-    mu_name <- get_param_name(mu)
-    sigma_name <- get_param_name(sigma)
-    mu <- params[mu_name]
-    sigma <- params[sigma_name]
-  }
 
   y_rep <- array(NA, dim = c(n_sims, n))
   for (i in seq_len(n_sims))
     y_rep[i, ] <- rnorm(n, mu[i, ], sigma[i])
 
   if (is.null(params))
-    params <- list(mu = mu, sigma = sigma, y_rep = y_rep)
+    params <- list()
+  params$mu <- mu
+  params$sigma <- sigma
+  params$y_rep <- y_rep
 
   check_model(y, y_rep, params, stat)
 }
 
 #' @export
 check_bernoulli <- function(y, p, params = NULL, stat) {
-  stopifnot(is.numeric(y) && is.array(p))
-
   if (!is.null(params)) {
     p_name <- get_param_name(p)
-    p <- params[p_name]
+    p <- params[[p_name]]
   }
+
+  stopifnot(is.numeric(y) && is.array(p))
 
   n_sims <- dim(p)[1]
   n <- length(y)
@@ -104,7 +108,9 @@ check_bernoulli <- function(y, p, params = NULL, stat) {
     y_rep[i, ] <- rbernoulli(n, p[i, ])
 
   if (is.null(params))
-    params <- list(p = p, y_rep = y_rep)
+    params <- list()
+  params$p <- p
+  params$y_rep <- y_rep
 
   check_model(y, y_rep, params, stat)
 }
