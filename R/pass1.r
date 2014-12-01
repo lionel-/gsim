@@ -1,5 +1,6 @@
 
 
+
 call_args <- function(x) as.list(x)[-1]
 is_arg_call <- function(x) vapply(call_args(x), is.call, logical(1))
 call_fun <- function(x) deparse(x[[1]]) 
@@ -31,12 +32,7 @@ no_loop <- function(x, subclass = NULL) {
 
 
 non_recyclability <- function(x, recursive = FALSE) {
-  args_durations <- lapply(x[-1], function(x) {
-    if (is.call(x) && !is.recyclable(x[[1]]))
-      attr(x, "duration")
-    else
-      NULL
-  })
+  args_durations <- lapply(x[-1], function(x) attr(x, "non_recyclability"))
 
   # Decrement non-recyclability duration of arguments
   args_durations <- unlist2(args_durations) - 1
@@ -148,10 +144,14 @@ pass1_args <- function(call) {
 
   
   if (is.null(inputs)) {
+    # Create intermediate calls for vectorised funs
+
     if (call_fun(call) %in% vectorised_funs) {
       to_loop_args <- papply(call, is.to_loop)
 
-      if (any(to_loop_args))
+      # Need to condition the following because, unlike lists,
+      # expressions cannot be subsetted with a vector of FALSE
+      if (sum(to_loop_args) > 0)
         call[to_loop_args] <- lapply(call[to_loop_args], function(item) {
           ref <- add_ref(empty_posterior())
           add_to_call_stack(ref, item)
@@ -161,9 +161,9 @@ pass1_args <- function(call) {
 
     call
   }
+
   else
     reactive(call, inputs)
-
 }
 
 vectorised_funs <- c(
@@ -171,7 +171,7 @@ vectorised_funs <- c(
   "%%", "summarise_sims"
 )
 
-protected_funs <- "bernoulli_check"
+protected_funs <- c("check_model", "check_bernoulli", "check_normal")
 
 # Looping over all simulations can be avoided in certain cases
 mark_looping <- function(x, n_post, to_loop) {
@@ -216,7 +216,7 @@ pass1_call <- function(call) {
   n_reactive <- length(reactive_inputs)
   n_posterior <- length(posterior_args)
 
-  to_loop <- any(papply(posterior_args, is.to_loop))
+  any_to_loop <- any(papply(posterior_args, is.to_loop))
 
   non_recyclability <- 
     if (n_reactive > 0 || n_posterior > 0)
@@ -226,7 +226,7 @@ pass1_call <- function(call) {
 
   call <- 
     if (n_posterior > 0)
-      mark_looping(call, n_posterior, to_loop)
+      mark_looping(call, n_posterior, any_to_loop)
     else
       call
 

@@ -35,7 +35,7 @@ test_that("Call stack gets cleaned on error", {
 
 
 test_that("Listed output protects and names elements", {
-  sims <- clone(new_sims)
+  sims <- gsim(arm_sims, wells)
 
   out1 <- sims(list(
     I(beta),

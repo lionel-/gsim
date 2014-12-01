@@ -76,7 +76,7 @@ test_that("Posterior predictive checks", {
   expect_identical(loop_p, p)
 
 
-  sims2 <- clone(new_sims)
+  sims2 <- gsim(arm_sims, wells)
   out2 <- sims2({
     X <- cbind(intercept(), c_dist100, c_arsenic, c_dist100 * c_arsenic)
     fitted <- inv_logit(X %*% col_vector(beta))
@@ -85,10 +85,10 @@ test_that("Posterior predictive checks", {
     null <- set.seed(123)
     null <- rbinom(3020, 1, 0.1)
 
-    bernoulli_check(y = switched, p = fitted, stat = var(y - p))
+    I(check_bernoulli(y = switched, p = fitted, stat = var(y - p)))
   })
 
-  expect_identical(loop_p, out2$p)
+  expect_identical(loop_p, p(out2))
 })
 
 

@@ -81,6 +81,13 @@ storage <- function(object = NULL) {
   }
 }
 
+stored_posteriors <- function() {
+  storage <- storage()
+  is_posterior <- papply(storage, is.posterior)
+  storage[is_posterior]
+}
+
+
 assign_in_context <- function(object, value) {
   env <- container_env()
   env$context[[object]] <- value
