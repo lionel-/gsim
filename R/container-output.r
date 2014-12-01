@@ -1,4 +1,36 @@
 
+#' @export
+retrieve <- function(cont_fun, var = `_last`) {
+  var <- lazyeval::lazy(var)
+  var <- as.character(var$expr)
+  retrieve_(cont_fun, var)
+}
+
+#' @export
+retrieve_ <- function(cont_fun, var = "_last") {
+  storage <- environment(cont_fun)$storage
+  out <- storage[[var]]
+  clean_class(out)
+}
+
+#' @export
+collect <- function(cont_fun, var = `_last`) {
+  var <- lazyeval::lazy(var)
+  var <- as.character(var$expr)
+  collect_(cont_fun, var)
+}
+
+#' @export
+collect_ <- function(cont_fun, var = "_last") {
+  storage <- environment(cont_fun)$storage
+  out <- storage[[var]]
+  tidy(out)
+}
+
+`$.gsim_container` <- retrieve
+`[[.gsim_container` <- retrieve_
+
+
 P <- function(x) {
   class(x) <- c(class(x), "protected")
   x
