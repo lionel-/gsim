@@ -13,15 +13,20 @@ retrieve_ <- function(cont_fun, var = "_last") {
   clean_class(out)
 }
 
+
 #' @export
-collect <- function(cont_fun, var = `_last`) {
+#' @importFrom dplyr collect
+NULL
+
+#' @export
+collect.gsim_container <- function(cont_fun, var = `_last`) {
   var <- lazyeval::lazy(var)
   var <- as.character(var$expr)
   collect_(cont_fun, var)
 }
 
 #' @export
-collect_ <- function(cont_fun, var = "_last") {
+collect_.gsim_container <- function(cont_fun, var = "_last") {
   storage <- environment(cont_fun)$storage
   out <- storage[[var]]
   tidy(out)
