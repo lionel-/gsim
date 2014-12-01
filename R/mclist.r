@@ -49,9 +49,13 @@ as.mclist.lm <- function(x, n_sims = 100) {
   check_packages("arm", "MASS")
 
   # FIXME: until arm puts mvrnorm in importFrom
-  library("MASS")
-
+  was_MASS_attached <- "package:MASS" %in% search()
+  suppressMessages(library("MASS"))
   sims <- arm::sim(x, n.sims = n_sims)
+
+  if (!was_MASS_attached)
+    detach("package:MASS")
+  
   as.mclist.sim(sims)
 }
 
@@ -126,9 +130,13 @@ as.mclist.merMod <- function(x, n_sims = 100) {
   check_packages("arm", "MASS")
 
   # FIXME: until arm puts mvrnorm in importFrom
-  library("MASS")
-
+  was_MASS_attached <- "package:MASS" %in% search()
+  suppressMessages(library("MASS"))
   sims <- arm::sim(x, n.sims = n_sims)
+
+  if (!was_MASS_attached)
+    detach("package:MASS")
+
   as.mclist.sim.merMod(sims, x)
 }
 
