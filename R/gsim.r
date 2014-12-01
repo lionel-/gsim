@@ -121,6 +121,7 @@ gsim <- function(sims, ..., n_sims = 100, tidy_output = TRUE) {
   invisible(fun)
 }
 
+#' @export
 decant <- gsim
 
 init_storage <- function(sims, ...) {

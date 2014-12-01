@@ -32,7 +32,10 @@ collect_.gsim_container <- function(cont_fun, var = "_last") {
   tidy(out)
 }
 
+#' @export
 `$.gsim_container` <- retrieve
+
+#' @export
 `[[.gsim_container` <- retrieve_
 
 
