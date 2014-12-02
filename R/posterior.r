@@ -7,7 +7,13 @@ is.posterior  <- function(x) {
   inherits(x, "posterior")
 }
 
-as.posterior <- function(x, n_sims = NULL) {
+#' Coerce to a point mass
+#'
+#' To operate on posterior objects with some other numeric object
+#' (vector, matrix or array), the latter generally needs to be coerced
+#' into a random variable object. Certainly takes an input and turns
+#' it into a point mass by repeating it over all simulations.
+certainly <- function(x, n_sims = NULL) {
   if (is.null(n_sims))
     n_sims <- context("n_sims")
 
@@ -23,6 +29,8 @@ as.posterior <- function(x, n_sims = NULL) {
   res <- perm_dims(res)
   structure(res, class = "posterior")
 }
+
+as.posterior <- certainly
 
 # Simulations' array dimension need to be the first one. But it is
 # easier to add a new dimension to the right than to the left. So, we
