@@ -13,7 +13,8 @@ fetch_wells_data <- function() {
 
   url <- "https://raw.githubusercontent.com/stan-dev/example-models/master/ARM/Ch.7/wells.data.R"
   wells <- new.env()
-  eval(expr = parse(text = RCurl::getURL(url)), wells)
+  raw <- RCurl::getURL(url, .opts = list(ssl.verifypeer = FALSE))
+  eval(expr = parse(text = raw), wells)
 
   as.data.frame(as.list(wells)) %>%
     dplyr::select(-N) %>%
@@ -31,7 +32,8 @@ fetch_radon_data <- function() {
 
   url <- "https://raw.githubusercontent.com/stan-dev/example-models/master/ARM/Ch.12/radon.data.R"
   radon <- new.env()
-  eval(expr = parse(text = RCurl::getURL(url)), radon)
+  raw <- RCurl::getURL(url, .opts = list(ssl.verifypeer = FALSE))
+  eval(expr = parse(text = raw), radon)
 
   as.data.frame(as.list(radon)) %>%
     dplyr::select(-N, -J)
