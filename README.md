@@ -118,5 +118,6 @@ the scope of the function, and apply the function to each simulation.
 
 ```{r}
 my_sd <- by_sim(sd)
-sims %>% my_sd(new1)
+stan_fit %>%
+  my_sd(new1)
 ```
