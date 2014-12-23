@@ -45,26 +45,27 @@ out2 <- sims$new2
 ```
 
 This workflow may seem unusual to the experimented R programmer and
-indeed it is. When a container receives a set of operations that
-creates new variables, as in the example above, it stores them
-automatically in the container. You don't have to reassign the
-container with an updated version using `<-`. Newly created variables
-are invisibly created inside the existing object.
-
-In computer science parlance, this behavior is known as a
+indeed it is. When you instruct a container to create new variables,
+as in the example above, it actually modifies itself to hold them
+permanently. You don't have to reassign the container with an updated
+version using `<-`. Newly created variables are invisibly created
+inside the existing object. In computer science parlance, this
+behavior is known as a
 [side effect](http://en.wikipedia.org/wiki/Side_effect_(computer_science)):
 a gsim container modifies itself as a side effect before returning the
-object mentioned in the last line of the instructions. However, such
-side effects should generally be avoided in R because it is a
-[functional language](http://adv-r.had.co.nz/Functional-programming.html). In
-the functional approach, the only impact functions should have on
-their environment is through their output. For this reason, the next
-version of gsim will feature a new idiom more in line with R's
-conventions. It will operate directly on R objects containing
+object mentioned in the last line of the instructions.
+
+However, such side effects should generally be avoided in R because it
+is a
+[functional language](http://adv-r.had.co.nz/Functional-programming.html).
+In the functional approach, the only impact functions should have on
+their environment is through the output they return. The next version
+of gsim will therefore feature a new idiom more in line with R's
+conventions. Gsim will operate directly on R objects containing
 simulations, and return a new updated object. In turn, this object can
 be reassigned to update the original one.
 
-To make the workflow seamless, this old functional idiom will be
+To make the workflow seamless, the old functional idiom will be
 complemented with a new one:
 [magrittr](https://github.com/smbache/magrittr)'s pipes and
 [dplyr](https://github.com/hadley/dplyr)'s verbs. The function
@@ -93,15 +94,15 @@ visit to `summarise()` and `tidy()`. Any change to the environment
 occurs through the `<-` operator. Since there is no side effect, the
 object `sims` was not modified to hold `new2`.
 
-Since `mutate()` is best suited for simple transformations, the verb
-`by_sim()` will take more complex operations as input. It will be
-similar to how gsim currently applies operations, but with a
-functional touch. In addition, there will be a distinction between
-creating temporary variables and new transformations of
-parameters. Temporary variables are created with `<-`. To actually
-modify the list of simulations returned by `by_sims()`, new variables
-will have to be assigned with `~`. In the following example, sims is
-updated with `new2`, but not `new1`.
+`mutate()` is best suited for simple transformations. More complex
+operations will be handled by the verb `by_sim()`. It will be similar
+to how gsim currently applies operations, but with a functional
+touch. In addition, there will be a distinction between creating
+temporary variables and new transformations of parameters. The
+assignment operator `<-` will only create temporary variables. To
+actually modify the list of simulations returned by `by_sims()` with
+new variables, they will have to be assigned with `~`. In the
+following example, sims is updated with `new2`, but not `new1`.
 
 ```{r}
 sims <- sims %>%
