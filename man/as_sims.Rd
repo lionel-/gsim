@@ -12,7 +12,7 @@
 \alias{as_sims.sim}
 \alias{as_sims.stanfit}
 \alias{is.mclist}
-\title{Coerce a set of MCMC arrays to a sims object}
+\title{Coerce to a sims object}
 \usage{
 as_sims(x, major_order = NULL, ...)
 
@@ -57,27 +57,22 @@ mclist. Simulations from fitted models are obtained through
 }
 \section{Methods (by class)}{
 \itemize{
-\item \code{stanfit}: Convert Stan simulations to mclist
+\item \code{stanfit}: 
 
-\item \code{sim}: Convert arm::sim simulations to mclist
+\item \code{sim}: 
 
-\item \code{lm}: Simulate from a lm fitted model and convert
-to mclist
+\item \code{lm}: to mclist
 
-\item \code{glm}: Simulate from a glm fitted model and
-convert to mclist
+\item \code{glm}: 
 
-\item \code{polr}: Simulate from a glm fitted model and
-convert to mclist
+\item \code{polr}: 
 
-\item \code{merMod}: Simulate from a lmer fitted model and
-convert to mclist
+\item \code{merMod}: 
 
-\item \code{glmerMod}: Simulate from a glmer fitted model and
-convert to mclist
+\item \code{glmerMod}: 
 
-\item \code{list}: Convert Jags or Stan simulation lists to mclist
+\item \code{list}: 
 
-\item \code{mcmc.list}: Convert Coda simulations to mclist
+\item \code{mcmc.list}: 
 }}
 

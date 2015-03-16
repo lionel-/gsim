@@ -1,4 +1,4 @@
-#' Coerce a set of MCMC arrays to a sims object
+#' Coerce to a sims object
 #'
 #' Converts posterior simulations and fitted models to an
 #' mclist. Simulations from fitted models are obtained through
@@ -17,21 +17,33 @@ as_sims <- function(x, major_order = NULL, ...) {
   UseMethod("as_sims")
 }
 
-#' @describeIn as_sims Convert Stan simulations to mclist
+as_sims.sims <- function(x, major_order = NULL, ...) {
+  if (is.null(major_order)) {
+    x
+  } else {
+    permute_sims(x, major_order)
+  }
+}
+
+#' @describeIn as_sims
 #' @export
 as_sims.stanfit <- function(x, major_order = NULL, ...) {
   if (!requireNamespace("rstan", quietly = TRUE)) {
     stop("Package `rstan` is not installed", call. = FALSE)
   }
 
-  out <- rstan::extract(x) %>% map(sims_array, major_order = FALSE)
-  if (major_order) {
+  out <- rstan::extract(x) %>%
+    map(sims_array, major_order = FALSE) %>%
+    structure(class = "sims")
+
+  if (!is.null(major_order) && major_order) {
     out <- permute_sims(out, to_major = TRUE)
   }
-  structure(out, class = "sims")
+
+  out
 }
 
-#' @describeIn as_sims Convert arm::sim simulations to mclist
+#' @describeIn as_sims
 #' @export
 as_sims.sim <- function(x, major_order = NULL, ...) {
   sims <- process_arm_sims(x)
@@ -47,7 +59,7 @@ as_sims.sim.polr <- function(x, major_order = NULL, ...) {
   suppressMessages(as_sims.sim(x, ...))
 }
 
-#' @describeIn as_sims Simulate from a lm fitted model and convert
+#' @describeIn as_sims
 #' to mclist
 #' @export
 as_sims.lm <- function(x, major_order = NULL, n_sims = 100) {
@@ -64,13 +76,11 @@ as_sims.lm <- function(x, major_order = NULL, n_sims = 100) {
   as_sims.sim(sims)
 }
 
-#' @describeIn as_sims Simulate from a glm fitted model and
-#' convert to mclist
+#' @describeIn as_sims
 #' @export
 as_sims.glm <- as_sims.lm
 
-#' @describeIn as_sims Simulate from a glm fitted model and
-#' convert to mclist
+#' @describeIn as_sims
 #' @export
 as_sims.polr <- as_sims.lm
 
@@ -128,8 +138,7 @@ set_list_dimnames <- function(list) {
   }, list, names(list))
 }
 
-#' @describeIn as_sims Simulate from a lmer fitted model and
-#' convert to mclist
+#' @describeIn as_sims
 #' @export
 as_sims.merMod <- function(x, major_order = NULL, n_sims = 100) {
   check_packages("arm", "MASS")
@@ -145,8 +154,7 @@ as_sims.merMod <- function(x, major_order = NULL, n_sims = 100) {
   as_sims.sim.merMod(sims, x)
 }
 
-#' @describeIn as_sims Simulate from a glmer fitted model and
-#' convert to mclist
+#' @describeIn as_sims
 as_sims.glmerMod <- as_sims.merMod
 
 
@@ -169,7 +177,7 @@ clean_coefnames <- function(names) {
 }
 
 
-#' @describeIn as_sims Convert Jags or Stan simulation lists to mclist
+#' @describeIn as_sims
 #' @export
 as_sims.list <- function(x, major_order = NULL, ...) {
   is_mcarray <- papply(x, function(item) inherits(item, "mcarray"))
@@ -206,7 +214,7 @@ as_sims.jagslist <- function(x) {
 }
 
 
-#' @describeIn as_sims Convert Coda simulations to mclist
+#' @describeIn as_sims
 #' @export
 #' @importFrom stringr str_extract str_match str_match_all str_replace_all
 as_sims.mcmc.list <- function(x, major_order = NULL, ...) {
@@ -312,7 +320,8 @@ permute_sims <- function(sims, to_major = TRUE) {
 #' @describeIn permute_sims
 #' @export
 permute_sims.sims <- function(sims, to_major = TRUE) {
-  map(sims, permute_sims.sims_array, to_major = to_major)
+  map(sims, permute_sims.sims_array, to_major = to_major) %>%
+    structure(class = "sims") # todo: should purrr::map() restore attrs?
 }
 
 #' @describeIn permute_sims

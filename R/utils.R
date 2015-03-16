@@ -24,7 +24,7 @@ apluck <- function(x, ...) {
 
 set_class <- function(x, ..., append = FALSE) {
   class <-
-    if (append) 
+    if (append)
       union(class(x), c(...))
     else
       c(...)
@@ -73,7 +73,7 @@ last <- function(x) {
 }
 
 dim_length <- function(x) {
-  length(dim(x)) 
+  length(dim(x))
 }
 
 `%||%` <- function(a, b) {
@@ -99,7 +99,7 @@ compact <- function(list, recursive = FALSE) {
 }
 
 isFALSE <- function(x) {
-  identical(FALSE, x) 
+  identical(FALSE, x)
 }
 
 unlist2 <- function(x, recursive = TRUE) {
@@ -123,7 +123,7 @@ check_packages <- function(...) {
     requireNamespace(x, quietly = TRUE)
   })
 
-  msg <- 
+  msg <-
     if (sum(!is_installed) > 1)
       "Please install the following packages: "
     else
@@ -147,3 +147,13 @@ I <- function(x) {
 # non-existing objects
 null <- function() structure(NULL, class = "null")
 is.null2 <- function(x) inherits(x, "null")
+
+
+calling_env <- function() {
+  maybe_pipe_env <- parent.frame(5)
+  if (exists("_fseq", envir = maybe_pipe_env)) {
+    parent.env(maybe_pipe_env)
+  } else {
+    parent.frame(2)
+  }
+}
