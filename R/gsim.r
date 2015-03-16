@@ -2,7 +2,10 @@
 #'
 #' @name gsim-package
 #' @docType package
+#' @useDynLib gsim
 #' @importFrom magrittr %>% %$%
+#' @importFrom Rcpp sourceCpp
+#' @importFrom purrr map
 NULL
 
 # Debugging flags
@@ -51,7 +54,7 @@ if (!exists("pass2", envir = globalenv()))
 #'
 #' # The purpose of gsim containers is to execute operations. There are
 #' # many ways of supplying statements to a gsim container.
-#' 
+#'
 #' # Directly, with one statement:
 #' null <- gsim(beta_100 <- 100 * beta)  # Assign beta_100 in container but returns nothing
 #' beta_100_df <- gsim(beta_100)         # Returns beta_100 in a data.frame
@@ -84,7 +87,7 @@ if (!exists("pass2", envir = globalenv()))
 #'
 #' # The following returns beta since fitted does not exist in sims2
 #' sims2 <- gsim(wells_fit, wells)
-#' fitted <- sims2(fitted)  
+#' fitted <- sims2(fitted)
 #'
 #'
 #' # All these ways of executing operations can be combined by adding
