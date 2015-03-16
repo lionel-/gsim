@@ -8,7 +8,9 @@ LazyData: true
 Depends:
     R (>= 3.1.1)
 Imports:
+    purrr,
     dplyr (>= 0.2),
+    Rcpp,
     lazyeval
 Suggests:
     arm,
@@ -19,3 +21,4 @@ Suggests:
     testthat,
     RCurl
 VignetteBuilder: knitr
+LinkingTo: Rcpp
