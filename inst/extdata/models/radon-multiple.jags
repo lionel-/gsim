@@ -1,0 +1,53 @@
+
+# From http://www_stat_columbia_edu/~gelman/arm/examples/Book_Codes_zip
+
+# radon_multiple_data <- radon_data() %>%
+#   define(
+#     y, county,
+#     X = design(1, x),
+#     U = design(1, u, .unjoin = county),
+#     N = nrow(.),
+#     J = n_distinct(county),
+#     L = 2, K = 2,
+#     W = diag(2)
+#   )
+
+model {
+  for (n in 1:N) {
+    y[n] ~ dnorm(y_hat[n], tau_y)
+    y_hat[n] <- inprod(B[county[n], ], X[n, ])
+  }
+  tau_y <- pow(sigma_y, -2)
+  sigma_y ~ dunif(0, 100)
+
+  for (k in 1:K) {
+    for (j in 1:J) {
+      B[j, k] <- xi[k] * B_raw[j, k]
+    }
+    xi[k] ~ dunif(0, 100)
+  }
+  for (j in 1:J) {
+    B_raw[j, 1:K] ~ dmnorm(B_raw_hat[j, ], Tau_B_raw[, ])
+    for (k in 1:K) {
+      B_raw_hat[j, k] <- inprod(G_raw[k, ], U[j, ])
+    }
+  }
+  for (k in 1:K) {
+    for (l in 1:L) {
+      G[k, l] <- xi[k] + G_raw[k, l]
+      G_raw[k, l] ~ dnorm(0, .0001)
+    }
+  }
+
+  Tau_B_raw[1:K, 1:K] ~ dwish(W[, ], df)
+  df <- K + 1
+  Sigma_B_raw[1:K, 1:K] <- inverse(Tau_B_raw[, ])
+
+  for (k in 1:K) {
+    for (k_prime in 1:K) {
+      rho_B[k, k_prime] <- Sigma_B_raw[k, k_prime] /
+        sqrt(Sigma_B_raw[k, k] * Sigma_B_raw[k_prime, k_prime])
+    }
+    sigma_B[k] <- abs(xi[k]) * sqrt(Sigma_B_raw[k, k])
+  }
+}

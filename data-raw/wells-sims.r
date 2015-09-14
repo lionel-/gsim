@@ -1,11 +1,13 @@
 
 # Wells simulations used in tests
 
-wells <- fetch_wells_data()
-stan_wells_data <- c(
-  wells %>% dplyr::select(y = switched, c_dist100, c_arsenic),
-  list(N = nrow(wells))
-)
+wells <- wells_data() %>%
+  define(
+    y = switched,
+    c_dist100,
+    c_arsenic,
+    N = nrow(.)
+  )
 
 stan_wells_m <- system.file("data-raw", "wells.stan", package = "gsim")
 wells_stanfit <- rstan::stan(stan_wells_m, data = stan_wells_data,

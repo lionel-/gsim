@@ -1,6 +1,8 @@
 #include "gsim.h"
 
 
+/* Could be made more efficient by exploiting tail optimisation */
+
 strings& find_names_recurser(SEXP expr, strings& names) {
   switch(TYPEOF(expr)) {
   case REALSXP:
@@ -48,6 +50,7 @@ strings& find_names_recurser(SEXP expr, strings& names) {
 }
 
 
+// [[Rcpp::export]]
 strings find_names(SEXP call) {
   strings names;
   return find_names_recurser(call, names);

@@ -1,26 +1,26 @@
 
+library("gsim")
+import::from("dplyr", n_distinct)
+import::from("Rcpp", cpp_object_initializer)
+
 # Radon simulations used in tests
-
-radon <- fetch_radon_data()
-stan_radon_data <- c(
-  radon %>% dplyr::select(y, x, county),
-  radon %>%
-    dplyr::group_by(county) %>%
-    dplyr::distinct(u) %>%
-    dplyr::ungroup() %>%
-    dplyr::select(u),
-  list(
-    N = nrow(radon),
-    J = dplyr::n_distinct(radon$county)
+stan_radon_data <- radon_data() %>%
+  define(
+    y, county,
+    X = design(1, x),
+    U = design(1, u, .unjoin = county),
+    N = nrow(.),
+    J = n_distinct(county),
+    P_X = ncol(X),
+    P_U = ncol(U)
   )
-)
 
-stan_radon_m <- system.file("data-raw", "radon.stan", package = "gsim")
-radon_stanfit <- rstan::stan(stan_radon_m, data = stan_radon_data,
+
+radon_m <- radon_model(language = "stan", variant = "centered")
+radon_stanfit <- rstan::stan(model_code = radon_m, data = stan_radon_data,
   iter = 100, chains = 2)
 
-radon_sims <- rstan::extract(radon_stanfit,
-  c("y_hat", "y_rep", "a", "b", "alpha", "beta", "Sigma_county", "rho", "sigma_y")
-)
+radon_sims <- radon_stanfit %>%
+  select(mu_y, y_rep, Beta, sigma, Gamma, sigma_Beta, Omega)
 
-save(radon_sims, file = "./tests/testthat/radon-sims.rda")
+saveRDS(radon_sims, file = "./tests/testthat/radon-sims.rds")

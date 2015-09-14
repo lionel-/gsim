@@ -6,18 +6,41 @@
 
 using namespace Rcpp;
 
+// as_matrix_impl
+SEXP as_matrix_impl(const SEXP data);
+RcppExport SEXP gsim_as_matrix_impl(SEXP dataSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< const SEXP >::type data(dataSEXP);
+    __result = Rcpp::wrap(as_matrix_impl(data));
+    return __result;
+END_RCPP
+}
+// find_names
+strings find_names(SEXP call);
+RcppExport SEXP gsim_find_names(SEXP callSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< SEXP >::type call(callSEXP);
+    __result = Rcpp::wrap(find_names(call));
+    return __result;
+END_RCPP
+}
 // by_sim_impl
-SEXP by_sim_impl(const List sims, NumericVector data_lengths, int n_sims, const SEXP fun, const Environment calling_env);
-RcppExport SEXP gsim_by_sim_impl(SEXP simsSEXP, SEXP data_lengthsSEXP, SEXP n_simsSEXP, SEXP funSEXP, SEXP calling_envSEXP) {
+SEXP by_sim_impl(const List sims, List data_dims, int n_sims, const SEXP fun, const Environment eval_env, SEXP dots);
+RcppExport SEXP gsim_by_sim_impl(SEXP simsSEXP, SEXP data_dimsSEXP, SEXP n_simsSEXP, SEXP funSEXP, SEXP eval_envSEXP, SEXP dotsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject __result;
     Rcpp::RNGScope __rngScope;
     Rcpp::traits::input_parameter< const List >::type sims(simsSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type data_lengths(data_lengthsSEXP);
+    Rcpp::traits::input_parameter< List >::type data_dims(data_dimsSEXP);
     Rcpp::traits::input_parameter< int >::type n_sims(n_simsSEXP);
     Rcpp::traits::input_parameter< const SEXP >::type fun(funSEXP);
-    Rcpp::traits::input_parameter< const Environment >::type calling_env(calling_envSEXP);
-    __result = Rcpp::wrap(by_sim_impl(sims, data_lengths, n_sims, fun, calling_env));
+    Rcpp::traits::input_parameter< const Environment >::type eval_env(eval_envSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type dots(dotsSEXP);
+    __result = Rcpp::wrap(by_sim_impl(sims, data_dims, n_sims, fun, eval_env, dots));
     return __result;
 END_RCPP
 }

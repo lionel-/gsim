@@ -1,0 +1,45 @@
+
+# From http://www_stat_columbia_edu/~gelman/arm/examples/Book_Codes_zip
+
+# jags_radon_scaled_data <-
+#   radon_data() %>%
+#   define(
+#     y, county, x, u,
+#     N = nrow(.),
+#     J = n_distinct(county),
+#     W = diag(2)
+#   )
+
+model {
+  for(n in 1:N) {
+    y[n] ~ dnorm(y_hat[n], tau_y)
+    y_hat[n] <- a[county[n]] + b[county[n]] * x[n]
+  }
+  tau_y <- pow(sigma_y, -2)
+  sigma_y ~ dunif(0, 100)
+
+  for(j in 1:J) {
+    a[j] <- xi_a * B_raw[j, 1]
+    b[j] <- xi_b * B_raw[j, 2]
+    B_raw[j, 1:2] ~ dmnorm(B_raw_hat[j, ], Tau_B_raw[, ])
+    B_raw_hat[j, 1] <- g_a_0_raw + g_a_1_raw * u[j]
+    B_raw_hat[j, 2] <- g_b_0_raw + g_b_1_raw * u[j]
+  }
+
+  g_a_0_raw <- xi_a * mu_a_raw
+  g_a_1_raw <- xi_a * mu_a_raw
+  g_b_0_raw <- xi_b * mu_b_raw
+  g_b_1_raw <- xi_b * mu_b_raw
+  mu_a_raw ~ dnorm(0, .0001)
+  mu_b_raw ~ dnorm(0, .0001)
+
+  xi_a ~ dunif(0, 100)
+  xi_b ~ dunif(0, 100)
+
+  Tau_B_raw[1:2, 1:2] ~ dwish(W[, ], df)
+  df <- 3
+  Sigma_B_raw[1:2, 1:2] <- inverse(Tau_B_raw[, ])
+  sigma_a <- xi_a * sqrt(Sigma_B_raw[1, 1])
+  sigma_b <- xi_b * sqrt(Sigma_B_raw[2, 2])
+  rho <- Sigma_B_raw[1, 2] / sqrt(Sigma_B_raw[1, 1] * Sigma_B_raw[2, 2])
+}
