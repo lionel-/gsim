@@ -10,11 +10,11 @@ test_that("new definitions are accurate", {
 
   shifted_expected <- array(dim = c(919, nsims))
   for (i in 1:nsims) {
-    shifted_expected[, i] <- radon_sims$mu_y[i, ] + 10
+    shifted_expected[, i] <- radon_sims$mu_y[[i]] + 10
   }
   resid_rep_expected <- array(dim = c(919, nsims))
   for (i in 1:nsims) {
-    resid_rep_expected[, i] <- radon_sims$y_rep[i, ] - radon_sims$mu_y[i, ]
+    resid_rep_expected[, i] <- radon_sims$y_rep[[i]] - radon_sims$mu_y[[i]]
   }
 
   expect_equal_array(sims$shifted, shifted_expected)
@@ -27,7 +27,7 @@ test_that("extra data is in scope", {
 
   resid_expected <- array(dim = c(919, nsims))
   for (i in 1:nsims) {
-    resid_expected[, i] <- radon$y - radon_sims$mu_y[i, ]
+    resid_expected[, i] <- radon$y - radon_sims$mu_y[[i]]
   }
 
   expect_equal_array(sims$resid, resid_expected)

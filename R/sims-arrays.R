@@ -86,23 +86,6 @@ check_sims_array <- function(x) {
   invisible(NULL)
 }
 
-#' @export
-print.sims_array <- function(x, ...) {
-  if (is_sims_major(x)) {
-    order <- "(sims-major order)"
-  } else {
-    order <- "(data-major order)"
-  }
-  cat("Simulation array", order, "\n\n")
-
-  data_dims <- paste(data_dims(x), collapse = " x ")
-  if (identical(data_dims, "")) {
-    cat(n_sims(x), "sims scalar\n")
-  } else {
-    cat(n_sims(x), "sims x", data_dims, "\n")
-  }
-  invisible(NULL)
-}
 
 #' Rearrange the dimensions of an MCMC array
 #'
